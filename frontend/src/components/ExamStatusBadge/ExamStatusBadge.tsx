@@ -10,5 +10,10 @@ export const notificationLabels: Record<NotificationStatus, string> = {
 };
 
 export function ExamStatusBadge({ status }: { status: NotificationStatus }) {
-  return <span className={`${styles.badge} ${styles[status]}`}><span aria-hidden="true" />{notificationLabels[status]}</span>;
+  return (
+    <span className={`${styles.badge} ${styles[status]}`}>
+      <span aria-hidden="true" />
+      {notificationLabels[status]}
+    </span>
+  );
 }

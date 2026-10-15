@@ -1,14 +1,67 @@
-.wrapper { overflow-x: auto; border-top: 1px solid var(--border); }
-.table { border-collapse: collapse; width: 100%; min-width: 960px; text-align: left; font-size: 12px; }
-.table th { padding: 16px; font-size: 10px; font-weight: 600; background: #f8fafb; color: #6b818c; }
-.table td { border-top: 1px solid var(--border); padding: 18px 16px; vertical-align: top; line-height: 1.6; }
-.table tr:hover td { background: #fafcfb; }
-.name { display: block; font-size: 12px; font-weight: 550; }
-.id { display: block; color: #71838d; font-size: 9px; margin-top: 4px; }
-.date { font-variant-numeric: tabular-nums; white-space: nowrap; color: #637b87; }
-.table .state { text-align: center; padding: 60px 20px; color: #71838d; }
-.state > span { vertical-align: middle; margin-right: 8px; }
-.details { min-width: 220px; max-width: 300px; }
-.details p { margin: 0 0 10px; font-size: 11px; }
-.details small { display: block; margin-top: 4px; }
-.warning { color: #916526; }
+.wrapper {
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+}
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 960px;
+  text-align: left;
+  font-size: 12px;
+}
+.table th {
+  padding: 16px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #f8fafb;
+  color: #6b818c;
+}
+.table td {
+  border-top: 1px solid var(--border);
+  padding: 18px 16px;
+  vertical-align: top;
+  line-height: 1.6;
+}
+.table tr:hover td {
+  background: #fafcfb;
+}
+.name {
+  display: block;
+  font-size: 12px;
+  font-weight: 550;
+}
+.id {
+  display: block;
+  color: #71838d;
+  font-size: 9px;
+  margin-top: 4px;
+}
+.date {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #637b87;
+}
+.table .state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #71838d;
+}
+.state > span {
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.details {
+  min-width: 220px;
+  max-width: 300px;
+}
+.details p {
+  margin: 0 0 10px;
+  font-size: 11px;
+}
+.details small {
+  display: block;
+  margin-top: 4px;
+}
+.warning {
+  color: #916526;
+}
