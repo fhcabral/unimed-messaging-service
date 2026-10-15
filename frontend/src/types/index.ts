@@ -56,3 +56,38 @@ export interface SendCounts {
 export interface SendResult extends SendCounts {
   byChannel: Partial<Record<MessageChannel, SendCounts>>;
 }
+
+export type EmailProviderMode = 'MOCK' | 'SMTP';
+export interface PublicConfig {
+  smsProvider: 'MOCK';
+  emailProvider: EmailProviderMode;
+}
+
+export type ExamStatus = 'PENDING' | 'RELEASED';
+export type NotificationStatus = 'NOT_ELIGIBLE' | 'PENDING' | 'PROCESSING' | 'SENT' | 'FAILED';
+
+export interface Exam {
+  id: string;
+  patientId: string;
+  patient: Patient;
+  status: ExamStatus;
+  releasedAt: string | null;
+  notificationStatus: NotificationStatus;
+  notifiedAt: string | null;
+  notificationError: string | null;
+  notificationMessageId: string | null;
+  processingStartedAt: string | null;
+  reconciliationRequired: boolean;
+  createdAt: string;
+}
+
+export interface ExamQuery {
+  page: number;
+  limit: number;
+  status?: ExamStatus;
+  notificationStatus?: NotificationStatus;
+}
+
+export interface ExamProcessResult extends SendCounts {
+  uncertain: number;
+}
