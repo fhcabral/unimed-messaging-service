@@ -1,10 +1,12 @@
 # Mensageria Hospitalar — Front-end
 
-Página única em React + TypeScript + Vite, com CSS Modules e integração real com o NestJS por Axios. Não utiliza dados mockados, bibliotecas de interface, formulários, tabelas ou estado global.
+Dashboard em React + TypeScript + Vite, com CSS Modules e integração real com o NestJS por Axios. Consulta dados persistidos pela API, sem bibliotecas de interface ou de estado global. O backend fornece dados demonstrativos fictícios e providers simulados.
 
 ## Iniciar
 
-Pré-requisitos: Node.js 22.12+ (validado com 22.16) e o back-end configurado conforme [`../messaging-api/README.md`](../messaging-api/README.md).
+Recomendado: execute `npm run setup` e `npm run dev` na raiz; consulte o [README principal](../README.md).
+
+Pré-requisitos: Node.js 22.12+ e o back-end configurado conforme [`../messaging-api/README.md`](../messaging-api/README.md).
 
 Em um terminal, inicie a API na pasta `messaging-api`:
 
@@ -29,27 +31,40 @@ O front-end usa `VITE_API_URL=http://localhost:3000`, configurável no `.env`. N
 
 O back-end existente já permite `CORS_ORIGINS=http://localhost:5173`, portanto não foi necessário modificá-lo. Abra o front-end por `localhost`, pois `127.0.0.1` representa uma origem diferente. Para outras origens ou portas, configure o CORS do ambiente da API e reinicie-a.
 
+## Dashboard de exames
+
+A navegação por estado local abre primeiro **Exames** e mantém **Pacientes e Mensagens**, sem React Router. A navegação também funciona em telas pequenas; seleção, canais e templates permanecem ao alternar módulos. Durante operações ou confirmações, a troca de módulo fica bloqueada.
+
+A tabela mostra paciente, identificador do exame, status de liberação, datas, notificação e erro controlado. `ExamStatusBadge` distingue aguardando liberação/notificação, processamento, notificado e falha. Os filtros por status e a paginação seguem `GET /exams`.
+
+- **Atualizar**: consulta novamente os dados.
+- **Processar pendentes**: chama explicitamente `POST /exams/process-pending`.
+- **Reprocessar falha**: abre confirmação e chama `POST /exams/:id/retry`; tentativas anteriores permanecem no histórico.
+- `PROCESSING` prolongado mostra necessidade de conferência; não oferece reenvio automático de resultado incerto.
+
+Abrir a página executa somente consultas. O backend faz seed e processamento no bootstrap, sem depender da interface. E-mail real ou simulado é informado por `GET /config`, sem acesso a credenciais.
+
 ## Fluxo de uso
 
 1. Clique em **Importar pacientes** e selecione um CSV UTF-8 com separador vírgula. Aceita `name,phone,email`, `name,phone` legado ou `name,email`. Cada paciente precisa de telefone, e-mail ou ambos. Veja [`patients.csv`](../messaging-api/examples/patients.csv) e [`patients-multichannel.csv`](../messaging-api/examples/patients-multichannel.csv). Os e-mails `example.invalid` são fictícios, sem destinatários reais.
 2. Confira o resumo de importados, ignorados e inválidos. A listagem é atualizada automaticamente. O servidor valida as linhas e aceita até 1.000 registros; a interface também rejeita arquivos vazios, extensão diferente de `.csv` e tamanho acima de 1 MiB.
 3. Busque por nome, telefone ou e-mail e selecione os pacientes. A tabela mostra os dois contatos; ausência é exibida como “Não informado”. O checkbox do cabeçalho seleciona somente a página atual. A seleção permanece ao paginar, mudar o tamanho da página ou buscar outros pacientes. O limite é 100 selecionados por lote.
 4. Escolha um template ou clique em **+** para criá-lo. O modal valida título, conteúdo, o token exato `{{name}}` e assunto opcional para e-mail: até 120 caracteres no título, 1.600 no conteúdo e 255 no assunto. O template criado é selecionado automaticamente.
-5. Selecione **SMS**, **E-mail** ou ambos. SMS é o padrão e continua simulado; **e-mail é real via SMTP**, configurado somente no back-end. Sem canais selecionados, o envio fica desabilitado. A prévia usa o primeiro paciente selecionado e mostra o assunto quando E-mail está marcado. O assunto vazio usa “Mensagem de acompanhamento”; o assunto é literal, e somente o conteúdo interpola `{{name}}`.
+5. Selecione **SMS**, **E-mail** ou ambos. SMS é o padrão e continua simulado; **e-mail é simulado por padrão**; o modo real exige `EMAIL_PROVIDER=SMTP` no backend. A interface consulta `GET /config` e informa o modo vigente. Se a configuração estiver indisponível, a seleção de e-mail fica bloqueada. Sem canais selecionados, o envio fica desabilitado. A prévia usa o primeiro paciente selecionado e mostra o assunto quando E-mail está marcado. O assunto vazio usa “Mensagem de acompanhamento”; o assunto é literal, e somente o conteúdo interpola `{{name}}`.
 6. Clique em **Enviar mensagens**, confira destinatários, template, canais e quantidade de envios e confirme. A interface avisa explicitamente quando haverá e-mail real e quando há pacientes sem contato para um canal. Esses pares serão registrados como falha, sem impedir os demais. Durante a requisição, bloqueia alterações e novos disparos.
-7. O resultado mostra totais e resumo por canal, distinguindo aceites do mock SMS e do SMTP real. Os totais contam paciente × canal: dois pacientes em dois canais geram quatro tentativas. A seleção é limpa somente após sucesso completo. Em falha parcial ou erro de rede, permanece selecionada com um aviso para evitar reenvios duplicados.
+7. O resultado mostra totais e resumo por canal, distinguindo aceites do mock SMS e do provider de e-mail configurado. Os totais contam paciente × canal: dois pacientes em dois canais geram quatro tentativas. A seleção é limpa somente após sucesso completo. Em falha parcial ou erro de rede, permanece selecionada com um aviso para evitar reenvios duplicados.
 
 O POST de envio não possui timeout automático nem retentativas: a API processa até 100 pacientes (até 200 pares paciente/canal) de forma síncrona. Uma interrupção de rede pode deixar o resultado incerto. Como a resposta contém somente contagens, não é possível determinar no front-end quais pacientes falharam; não repita o lote sem conferir o histórico em `GET /messages` ou no Swagger da API. O histórico inclui canal, assunto efetivo e erros individuais.
 
 ## Excluir pacientes/leads
 
-Use a **lixeira** na linha do paciente ou selecione até 100 pacientes e clique em **Excluir selecionados**. A exclusão dos selecionados considera também outras páginas, conforme a seleção existente. O modal pede confirmação e explica que os cadastros e seu histórico de mensagens serão apagados permanentemente. O foco inicial fica em **Cancelar**.
+Use a **lixeira** na linha do paciente ou selecione até 100 pacientes e clique em **Excluir selecionados**. A exclusão dos selecionados considera também outras páginas, conforme a seleção existente. O modal pede confirmação e explica que os cadastros, seus exames e o histórico de mensagens serão apagados permanentemente. O foco inicial fica em **Cancelar**.
 
 Durante a exclusão, os controles são bloqueados para impedir ações duplicadas. Após sucesso, a seleção remove os pacientes excluídos e a lista/paginação é atualizada. Em caso de erro, o modal mostra o motivo e permite cancelar. A API bloqueia lotes com pacientes inexistentes ou mensagens pendentes sem excluir parcialmente os outros pacientes. Templates não são apagados. Excluir um paciente não cancela um e-mail que já foi enviado.
 
 O front-end usa `POST /patients/bulk-delete` com `{patientIds}` tanto para exclusão individual como em lote e recebe `{deleted}`. A API também oferece `DELETE /patients/:id` para integrações.
 
-Configure SMTP em [`messaging-api/.env`](../messaging-api/.env.example), conforme o [guia de SMTP do back-end](../messaging-api/README.md#configurar-e-mail-real-por-smtp), e execute a nova migration antes de iniciar a API. Nenhuma credencial SMTP deve aparecer no front-end ou em variáveis `VITE_*`. Sem configuração completa, e-mails falham sem enviar; o mock SMS continua funcionando. Nenhum envio ocorre automaticamente ao abrir a página.
+Configure SMTP em [`messaging-api/.env`](../messaging-api/.env.example), conforme o [guia de SMTP do back-end](../messaging-api/README.md#configurar-e-mail-real-por-smtp), e execute a nova migration antes de iniciar a API. Nenhuma credencial SMTP deve aparecer no front-end ou em variáveis `VITE_*`. Somente no modo SMTP, sem configuração completa e-mails falham sem enviar; o mock SMS continua funcionando. Nenhum envio ocorre automaticamente ao abrir a página.
 
 ## Contratos utilizados
 
@@ -57,6 +72,10 @@ Configure SMTP em [`messaging-api/.env`](../messaging-api/.env.example), conform
 | ----------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
 | `POST /patients/import` | `FormData`, campo `file`               | `{ imported, ignored, invalid }`                                       |
 | `GET /patients`         | `page`, `limit`, `search` opcional     | `{ data, total, page, limit }`                                         |
+| `GET /config` | — | Providers públicos de SMS/e-mail |
+| `GET /exams` | `page`, `limit`, `status?`, `notificationStatus?` | `{data,total,page,limit}` |
+| `POST /exams/process-pending` | — | `{total,sent,failed,uncertain}` |
+| `POST /exams/:id/retry` | UUID do exame FAILED | `{total,sent,failed,uncertain}` |
 | `GET /templates`        | —                                      | Array de templates com `id`, `name`, `content`, `subject`, `createdAt` |
 | `POST /templates`       | `{ name, content, subject? }`          | Template criado                                                        |
 | `POST /messages/send`   | `{ templateId, patientIds, channels }` | `{ total, sent, failed, byChannel }`                                   |
@@ -68,6 +87,9 @@ O Axios é centralizado em `src/services/api.ts`; somente os arquivos em `servic
 ```text
 src/
   components/
+    AppShell/
+    ExamStatusBadge/
+    ExamTable/
     CsvImporter/
     PatientTable/
     TemplateSelect/
@@ -77,6 +99,7 @@ src/
     Feedback/
     Icon/
   pages/Dashboard/
+  pages/ExamsDashboard/
   services/
   types/
   hooks/
@@ -92,6 +115,6 @@ npm run build
 npm run preview
 ```
 
-O build executa a checagem estrita do TypeScript e gera os arquivos em `dist/`. O preview serve em `http://localhost:4173`; para consumir a API nessa origem, inclua-a no `CORS_ORIGINS` do ambiente do back-end. Nenhum teste automatizado foi adicionado nesta etapa, conforme o escopo.
+O build executa a checagem estrita do TypeScript e gera os arquivos em `dist/`. O preview serve em `http://localhost:4173`; para consumir a API nessa origem, inclua-a no `CORS_ORIGINS` do ambiente do back-end. Os contratos e regras de processamento possuem testes de integração na API. O build verifica os tipos dos componentes e serviços.
 
-Esta é uma aplicação local sem autenticação. Utilize dados fictícios e endereços de teste sob seu controle; proteja front-end e API antes de qualquer uso real com dados de pacientes. **SMS permanece simulado; e-mail é real quando o SMTP está configurado. Aceite pelo provider não comprova entrega ao celular ou à caixa de entrada.**
+Esta é uma aplicação local sem autenticação. Utilize dados fictícios e endereços de teste sob seu controle; proteja front-end e API antes de qualquer uso real com dados de pacientes. **SMS permanece simulado; e-mail é simulado por padrão e real somente com `EMAIL_PROVIDER=SMTP`. Aceite pelo provider não comprova entrega ao celular ou à caixa de entrada.**
