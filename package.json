@@ -1,0 +1,15 @@
+{
+  "name": "unimed-messaging-service",
+  "private": true,
+  "version": "0.2.0",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "setup": "node scripts/project.mjs setup",
+    "dev": "node scripts/project.mjs dev",
+    "stop": "node scripts/project.mjs stop",
+    "build": "node scripts/project.mjs build",
+    "lint": "npm --prefix messaging-api run lint",
+    "test": "npm --prefix messaging-api test -- --runInBand",
+    "test:e2e": "npm --prefix messaging-api run test:e2e -- --runInBand"
+  }
+}
