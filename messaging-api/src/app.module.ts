@@ -7,6 +7,7 @@ import { validateEnvironment } from './config/environment';
 import { databaseOptions } from './database/database.options';
 import { PatientsModule } from './contexts/patients/patients.module';
 import { TemplatesModule } from './contexts/templates/templates.module';
+import { ExamsModule } from './contexts/exams/exams.module';
 import { MessagesModule } from './contexts/messages/messages.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { MessagesModule } from './contexts/messages/messages.module';
     PatientsModule,
     TemplatesModule,
     MessagesModule,
+    ExamsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
