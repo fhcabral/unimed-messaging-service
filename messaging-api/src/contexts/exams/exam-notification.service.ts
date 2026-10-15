@@ -48,6 +48,7 @@ export class ExamNotificationService {
         result[await this.deliver(claim)]++;
       } catch {
         // Keep processing the remaining exams. Never blindly resend an uncertain claim.
+        result.total++;
         result.uncertain++;
         this.logger.error(
           'Falha ao preparar notificação; consulte os exames e o histórico.',

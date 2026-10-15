@@ -10,7 +10,11 @@ import { AppModule } from '../src/app.module';
 import { validateEnvironment } from '../src/config/environment';
 import { databaseOptions } from '../src/database/database.options';
 import { setupApp } from '../src/setup-app';
-import { Exam, ExamStatus } from '../src/contexts/exams/entities/exam.entity';
+import {
+  Exam,
+  ExamStatus,
+  NotificationStatus,
+} from '../src/contexts/exams/entities/exam.entity';
 import { ExamNotificationService } from '../src/contexts/exams/exam-notification.service';
 import { EXAM_NOTIFICATION_CONTENT } from '../src/contexts/exams/exam-notification.constants';
 import { Patient } from '../src/contexts/patients/entities/patient.entity';
@@ -167,6 +171,19 @@ describe('Exams + PostgreSQL (isolated schema)', () => {
     await expect(
       messages().insert({ ...sent, id: randomUUID() }),
     ).rejects.toThrow();
+  });
+
+  it('continues after a reservation failure and keeps processing counts consistent', async () => {
+    await Promise.all([createExam(), createExam()]);
+    jest
+      .spyOn(database, 'transaction')
+      .mockRejectedValueOnce(new Error('Reservation unavailable'));
+    const result = await notifications.processPending();
+    expect(result).toEqual({ total: 2, sent: 1, failed: 0, uncertain: 1 });
+    expect(await messages().count()).toBe(1);
+    expect(
+      await exams().countBy({ notificationStatus: NotificationStatus.PENDING }),
+    ).toBe(1);
   });
 
   it('records deterministic failures and retries only explicitly while preserving failed history', async () => {
