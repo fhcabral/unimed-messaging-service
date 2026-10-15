@@ -19,6 +19,14 @@ import {
   MessageStatus,
 } from '../src/contexts/messages/entities/message.entity';
 import { SMS_PROVIDER } from '../src/contexts/messages/providers/sms-provider.interface';
+import { DatabaseBootstrapService } from '../src/database/bootstrap.service';
+import { SeedService } from '../src/database/seeds/seed.service';
+import {
+  DEMO_PATIENTS,
+  DEMO_EXAMS,
+  DEMO_TEMPLATE,
+} from '../src/database/seeds/data/demo-data';
+import { MessageTemplate } from '../src/contexts/templates/entities/message-template.entity';
 import { MockSmsProvider } from '../src/contexts/messages/providers/mock-sms.provider';
 
 jest.setTimeout(30000);
@@ -71,10 +79,12 @@ describe('Exams + PostgreSQL (isolated schema)', () => {
       'TRUNCATE "exams", "messages", "patients", "message_templates" CASCADE',
     );
     config.set('SMS_MOCK_FAIL_ALL', 'false');
+    config.set('DEMO_SEED_ENABLED', 'false');
+    config.set('NODE_ENV', 'test');
     patient = await database.getRepository(Patient).save({
       name: 'João Silva (fictício)',
       phone: '+5549999990001',
-      email: 'joao@example.test',
+      email: 'existing@example.test',
     });
   });
 
@@ -277,5 +287,60 @@ describe('Exams + PostgreSQL (isolated schema)', () => {
       .expect({ deleted: 1 });
     expect(await exams().count()).toBe(0);
     expect(await messages().count()).toBe(0);
+  });
+  it('bootstraps seed before processing, remains idempotent and preserves user edits on restart', async () => {
+    config.set('DEMO_SEED_ENABLED', 'true');
+    const bootstrap = app.get(DatabaseBootstrapService);
+    await bootstrap.onApplicationBootstrap();
+    expect(await exams().count()).toBe(4);
+    expect(await messages().countBy({ status: MessageStatus.SENT })).toBe(2);
+    await database
+      .getRepository(Patient)
+      .update(DEMO_PATIENTS[0].id, { name: 'Nome editado pelo usuário' });
+    await database
+      .getRepository(MessageTemplate)
+      .update(DEMO_TEMPLATE.id, { content: 'Template editado' });
+    const send = jest.spyOn(sms, 'send');
+    await Promise.all([app.get(SeedService).run(), app.get(SeedService).run()]);
+    await bootstrap.onApplicationBootstrap();
+    expect(send).not.toHaveBeenCalled();
+    expect(await exams().count()).toBe(4);
+    expect(await database.getRepository(Patient).count()).toBe(4);
+    expect(
+      (
+        await database
+          .getRepository(Patient)
+          .findOneByOrFail({ id: DEMO_PATIENTS[0].id })
+      ).name,
+    ).toBe('Nome editado pelo usuário');
+    expect(
+      (
+        await database
+          .getRepository(MessageTemplate)
+          .findOneByOrFail({ id: DEMO_TEMPLATE.id })
+      ).content,
+    ).toBe('Template editado');
+    expect(await messages().count()).toBe(2);
+    config.set('DEMO_SEED_ENABLED', 'false');
+  });
+
+  it('does not seed production or disabled environments, nor link conflicting user contacts to demo exams', async () => {
+    const seed = app.get(SeedService);
+    config.set('DEMO_SEED_ENABLED', 'false');
+    await seed.run();
+    expect(await exams().count()).toBe(0);
+    config.set('DEMO_SEED_ENABLED', 'true');
+    config.set('NODE_ENV', 'production');
+    await seed.run();
+    expect(await exams().count()).toBe(0);
+    config.set('NODE_ENV', 'test');
+    await database
+      .getRepository(Patient)
+      .update(patient.id, { phone: DEMO_PATIENTS[0].phone });
+    await seed.run();
+    expect(await exams().count()).toBe(2);
+    expect(await exams().existsBy({ id: DEMO_EXAMS[0].id })).toBe(false);
+    expect(await exams().countBy({ patientId: patient.id })).toBe(0);
+    config.set('DEMO_SEED_ENABLED', 'false');
   });
 });

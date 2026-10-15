@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
@@ -40,6 +41,15 @@ describe('API + PostgreSQL (isolated temporary schema)', () => {
     }).initialize();
     await database.runMigrations();
     const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(ConfigService)
+      .useValue(
+        new ConfigService({
+          ...validateEnvironment(process.env),
+          DEMO_SEED_ENABLED: 'false',
+          SMS_MOCK_FAIL_ALL: 'false',
+          EMAIL_PROVIDER: 'MOCK',
+        }),
+      )
       .overrideProvider(DataSource)
       .useValue(database)
       .compile();

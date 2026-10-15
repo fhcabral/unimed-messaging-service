@@ -7,6 +7,8 @@ import { validateEnvironment } from './config/environment';
 import { databaseOptions } from './database/database.options';
 import { PatientsModule } from './contexts/patients/patients.module';
 import { TemplatesModule } from './contexts/templates/templates.module';
+import { SeedModule } from './database/seeds/seed.module';
+import { DatabaseBootstrapService } from './database/bootstrap.service';
 import { ExamsModule } from './contexts/exams/exams.module';
 import { MessagesModule } from './contexts/messages/messages.module';
 
@@ -30,8 +32,9 @@ import { MessagesModule } from './contexts/messages/messages.module';
     TemplatesModule,
     MessagesModule,
     ExamsModule,
+    SeedModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, DatabaseBootstrapService],
 })
 export class AppModule {}
