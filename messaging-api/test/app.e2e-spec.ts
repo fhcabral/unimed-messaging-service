@@ -8,14 +8,14 @@ import { App } from 'supertest/types';
 import { validateEnvironment } from '../src/config/environment';
 import { databaseOptions } from '../src/database/database.options';
 import { setupApp } from '../src/setup-app';
-import { SMS_PROVIDER } from '../src/messages/providers/sms-provider.interface';
-import { MockSmsProvider } from '../src/messages/providers/mock-sms.provider';
+import { SMS_PROVIDER } from '../src/contexts/messages/providers/sms-provider.interface';
+import { MockSmsProvider } from '../src/contexts/messages/providers/mock-sms.provider';
 import {
   Message,
   MessageStatus,
-} from '../src/messages/entities/message.entity';
-import { Patient } from '../src/patients/entities/patient.entity';
-import { MessageTemplate } from '../src/templates/entities/message-template.entity';
+} from '../src/contexts/messages/entities/message.entity';
+import { Patient } from '../src/contexts/patients/entities/patient.entity';
+import { MessageTemplate } from '../src/contexts/templates/entities/message-template.entity';
 import { AppModule } from '../src/app.module';
 
 jest.setTimeout(30000);
@@ -62,7 +62,7 @@ describe('API + PostgreSQL (isolated temporary schema)', () => {
     await request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!');
+      .expect('Servidor OK!');
     await request(app.getHttpServer())
       .get('/docs-json')
       .expect(200)

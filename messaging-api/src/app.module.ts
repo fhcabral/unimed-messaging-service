@@ -5,9 +5,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { validateEnvironment } from './config/environment';
 import { databaseOptions } from './database/database.options';
-import { PatientsModule } from './patients/patients.module';
-import { TemplatesModule } from './templates/templates.module';
-import { MessagesModule } from './messages/messages.module';
+import { PatientsModule } from './contexts/patients/patients.module';
+import { TemplatesModule } from './contexts/templates/templates.module';
+import { MessagesModule } from './contexts/messages/messages.module';
 
 @Module({
   imports: [

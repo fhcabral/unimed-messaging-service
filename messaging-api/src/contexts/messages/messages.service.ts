@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Patient } from '../patients/entities/patient.entity';
 import { MessageTemplate } from '../templates/entities/message-template.entity';
-import { PaginationDto } from '../common/pagination.dto';
+import { PaginationDto } from '../../common/pagination.dto';
 import { Message, MessageStatus } from './entities/message.entity';
 import { SendMessagesDto } from './dto/send-messages.dto';
 import { SMS_PROVIDER } from './providers/sms-provider.interface';

@@ -53,7 +53,7 @@ export class PatientsService {
     for (const row of rows) {
       const name = row[headers.indexOf('name')]?.trim();
       const rawPhone = row[headers.indexOf('phone')]?.trim() ?? '';
-  
+
       const phone = /^[+\d\s().-]+$/.test(rawPhone)
         ? parsePhoneNumberFromString(rawPhone, 'BR')
         : undefined;
@@ -75,7 +75,6 @@ export class PatientsService {
     }
     let imported = 0;
     if (values.length) {
-      
       const result = await this.patients
         .createQueryBuilder()
         .insert()

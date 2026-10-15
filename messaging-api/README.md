@@ -124,9 +124,9 @@ Os testes unitários verificam importação, linhas inválidas, duplicatas, limi
 
 ## Organização
 
-- `src/patients`: upload, normalização/validação, importação e listagem.
-- `src/templates`: validação, cadastro e listagem.
-- `src/messages`: envio síncrono, provider injetável e histórico.
+- `src/contexts/patients`: upload, normalização/validação, importação e listagem.
+- `src/contexts/templates`: validação, cadastro e listagem.
+- `src/contexts/messages`: envio síncrono, provider injetável e histórico.
 - `src/database`: configuração compartilhada, DataSource e migration.
 - `src/config` e `src/common`: ambiente, paginação e erros HTTP sem dados pessoais nos logs.
 - `src/setup-app.ts`: validação global, CORS e Swagger, reutilizados nos testes HTTP.

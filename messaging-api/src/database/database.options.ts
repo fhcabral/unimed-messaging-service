@@ -1,7 +1,7 @@
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
-import { Patient } from '../patients/entities/patient.entity';
-import { MessageTemplate } from '../templates/entities/message-template.entity';
-import { Message } from '../messages/entities/message.entity';
+import { Patient } from '../contexts/patients/entities/patient.entity';
+import { MessageTemplate } from '../contexts/templates/entities/message-template.entity';
+import { Message } from '../contexts/messages/entities/message.entity';
 import { InitialSchema1792022400000 } from './migrations/1792022400000-initial-schema';
 
 export function databaseOptions(

@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
-import { PaginationDto } from '../../common/pagination.dto';
+import { PaginationDto } from '../../../common/pagination.dto';
 
 export class ListPatientsDto extends PaginationDto {
   @ApiPropertyOptional({

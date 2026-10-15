@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { PaginationDto } from '../common/pagination.dto';
+import { PaginationDto } from '../../common/pagination.dto';
 import { MessagesService } from './messages.service';
 import { SendMessagesDto } from './dto/send-messages.dto';
 
