@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import type { MessageTemplate, SendResult } from '../../types';
+import type { MessageChannel, MessageTemplate, SendResult } from '../../types';
+import { DEFAULT_EMAIL_SUBJECT } from '../../services/templates';
 import { MAX_SEND_PATIENTS, sendMessages } from '../../services/messages';
 import { getApiError } from '../../services/api';
 import { Icon } from '../Icon/Icon';
@@ -10,17 +11,31 @@ import styles from './SendMessageBar.module.css';
 interface Props {
   patientIds: string[];
   template?: MessageTemplate;
+  channels: MessageChannel[];
+  missingContacts: Record<MessageChannel, number>;
   onBusyChange: (busy: boolean) => void;
   onComplete: () => void;
 }
 
-export function SendMessageBar({ patientIds, template, onBusyChange, onComplete }: Props) {
+export function SendMessageBar({
+  patientIds,
+  template,
+  channels,
+  missingContacts,
+  onBusyChange,
+  onComplete,
+}: Props) {
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<SendResult | null>(null);
   const [error, setError] = useState('');
   const inFlight = useRef(false);
-  const valid = patientIds.length > 0 && patientIds.length <= MAX_SEND_PATIENTS && !!template;
+  const valid =
+    patientIds.length > 0 &&
+    patientIds.length <= MAX_SEND_PATIENTS &&
+    !!template &&
+    channels.length > 0;
+  const missingChannels = channels.filter((channel) => missingContacts[channel] > 0);
 
   async function confirmSend() {
     if (inFlight.current || !valid || !template) return;
@@ -30,7 +45,11 @@ export function SendMessageBar({ patientIds, template, onBusyChange, onComplete 
     setResult(null);
     setError('');
     try {
-      const response = await sendMessages({ templateId: template.id, patientIds: [...patientIds] });
+      const response = await sendMessages({
+        templateId: template.id,
+        patientIds: [...patientIds],
+        channels: [...channels],
+      });
       setResult(response);
       if (response.failed === 0 && response.sent === response.total) onComplete();
     } catch (cause) {
@@ -81,16 +100,47 @@ export function SendMessageBar({ patientIds, template, onBusyChange, onComplete 
           </button>
         </div>
       </section>
+      {missingChannels.length > 0 && (
+        <Feedback
+          tone="warning"
+          title="Alguns pacientes não possuem contato para o canal escolhido"
+        >
+          {missingChannels
+            .map(
+              (channel) =>
+                `${channel === 'SMS' ? 'SMS: sem telefone' : 'E-mail: sem endereço'} — ${missingContacts[channel]}`,
+            )
+            .join(' · ')}
+          .
+          <span className={styles.resultNote}>
+            Esses envios serão registrados como falha. Os demais contatos e canais continuam sendo
+            processados.
+          </span>
+        </Feedback>
+      )}
       {result && (
         <Feedback
           tone={result.failed ? 'warning' : 'success'}
-          title={result.failed ? 'Lote processado com falhas' : 'Envio simulado concluído'}
+          title={result.failed ? 'Lote processado com falhas' : 'Lote processado com sucesso'}
         >
-          Total: <strong className={styles.inline}>{result.total}</strong> · Aceitos pelo mock:{' '}
-          <strong className={styles.inline}>{result.sent}</strong> · Falhas:{' '}
+          Envios (paciente × canal): <strong className={styles.inline}>{result.total}</strong> ·
+          Aceitos: <strong className={styles.inline}>{result.sent}</strong> · Falhas:{' '}
           <strong className={styles.inline}>{result.failed}</strong>.
+          {(['SMS', 'EMAIL'] as const).map((channel) => {
+            const counts = result.byChannel[channel];
+            return counts ? (
+              <div className={styles.channelResult} key={channel}>
+                <strong className={styles.inline}>
+                  {channel === 'SMS' ? 'SMS simulado' : 'E-mail real'}
+                </strong>
+                : {counts.total} tentativas · {counts.sent} aceitos{' '}
+                {channel === 'SMS' ? 'pelo mock' : 'pelo SMTP'} · {counts.failed} falhas.
+              </div>
+            ) : null;
+          })}
           <span className={styles.resultNote}>
-            O aceite pelo mock não representa entrega no celular.{' '}
+            SMS é simulado; e-mail é real. O aceite pelo provider não comprova entrega ao
+            destinatário.{' '}
             {result.failed > 0
               ? 'A seleção foi mantida. O resumo não identifica os pacientes que falharam; reenviar este lote pode repetir mensagens já aceitas.'
               : 'A seleção foi limpa para preparar o próximo envio.'}
@@ -125,11 +175,42 @@ export function SendMessageBar({ patientIds, template, onBusyChange, onComplete 
                 <span>Template</span>
                 <strong>{template?.name}</strong>
               </div>
+              <div>
+                <span>Canais</span>
+                <strong>
+                  {channels
+                    .map((channel) => (channel === 'SMS' ? 'SMS simulado' : 'E-mail real'))
+                    .join(' + ')}
+                </strong>
+              </div>
+              <div>
+                <span>Total de envios</span>
+                <strong>{patientIds.length * channels.length} (paciente × canal)</strong>
+              </div>
+              {channels.includes('EMAIL') && (
+                <div>
+                  <span>Assunto do e-mail</span>
+                  <strong>{template?.subject?.trim() || DEFAULT_EMAIL_SUBJECT}</strong>
+                </div>
+              )}
             </div>
-            <Feedback>
-              Este envio é uma simulação. Nenhum SMS real será enviado e o resultado representa
-              apenas o aceite pelo provider mock.
-            </Feedback>
+            {channels.includes('SMS') && (
+              <Feedback>
+                O canal SMS continua simulado pelo mock, sem envio real ao celular.
+              </Feedback>
+            )}
+            {channels.includes('EMAIL') && (
+              <Feedback tone="warning" title="E-mail real">
+                Ao confirmar, os e-mails serão enviados de verdade aos endereços cadastrados, se o
+                SMTP estiver configurado. Confirme que os destinatários estão corretos.
+              </Feedback>
+            )}
+            {missingChannels.length > 0 && (
+              <Feedback tone="warning">
+                Há pacientes sem contato para um canal selecionado. Esses envios serão registrados
+                como falha e os demais continuarão.
+              </Feedback>
+            )}
             {(result?.failed || error) && (
               <Feedback tone="warning">
                 Um envio anterior teve falhas ou resultado incerto. Reenviar a mesma seleção pode

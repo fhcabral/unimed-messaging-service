@@ -17,3 +17,8 @@ export async function importPatients(file: File) {
   const { data } = await api.post<ImportResult>('/patients/import', form, { timeout: 30000 });
   return data;
 }
+
+export async function deletePatients(patientIds: string[]) {
+  const { data } = await api.post<{ deleted: number }>('/patients/bulk-delete', { patientIds });
+  return data;
+}

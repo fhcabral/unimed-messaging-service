@@ -1,7 +1,8 @@
 export interface Patient {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
+  email: string | null;
   createdAt: string;
 }
 
@@ -9,6 +10,7 @@ export interface MessageTemplate {
   id: string;
   name: string;
   content: string;
+  subject: string | null;
   createdAt: string;
 }
 
@@ -34,15 +36,23 @@ export interface ImportResult {
 export interface CreateTemplateInput {
   name: string;
   content: string;
+  subject?: string;
 }
+
+export type MessageChannel = 'SMS' | 'EMAIL';
 
 export interface SendMessagesInput {
   templateId: string;
   patientIds: string[];
+  channels: MessageChannel[];
 }
 
-export interface SendResult {
+export interface SendCounts {
   total: number;
   sent: number;
   failed: number;
+}
+
+export interface SendResult extends SendCounts {
+  byChannel: Partial<Record<MessageChannel, SendCounts>>;
 }

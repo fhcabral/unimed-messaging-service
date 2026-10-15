@@ -30,7 +30,7 @@ describe('PatientsService CSV', () => {
     );
     expect(result).toEqual({ imported: 1, ignored: 0, invalid: 0 });
     expect(values).toHaveBeenCalledWith([
-      { name: 'Paciente, Fictício', phone: '+5511999990001' },
+      { name: 'Paciente, Fictício', phone: '+5511999990001', email: null },
     ]);
   });
 
@@ -56,7 +56,7 @@ describe('PatientsService CSV', () => {
   });
 
   it.each([
-    'name,email\nPaciente Fictício,a@invalid.test',
+    'name,address\nPaciente Fictício,a@invalid.test',
     'name,phone,phone\nA,1,2',
     'name,phone\n"unterminated,11999990001',
   ])('rejects missing/duplicate headers or malformed CSV', async (csv) => {

@@ -19,10 +19,16 @@ type IconName =
   | 'external'
   | 'arrow-right'
   | 'refresh'
+  | 'trash'
   | 'alert'
   | 'check-circle';
 
 const paths: Record<IconName, ReactNode> = {
+  trash: (
+    <>
+      <path d="M3 6h18M9 6V4h6v2M5 6l1 15h12l1-15M10 10v7m4-7v7" />
+    </>
+  ),
   cross: <path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6Z" />,
   patients: (
     <>

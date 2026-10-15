@@ -1,7 +1,12 @@
 import {
   BadRequestException,
+  Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
   Post,
   Query,
   UploadedFile,
@@ -11,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MAX_CSV_BYTES, PatientsService } from './patients.service';
 import { ListPatientsDto } from './dto/list-patients.dto';
+import { DeletePatientsDto } from './dto/delete-patients.dto';
 
 @ApiTags('patients')
 @Controller('patients')
@@ -57,5 +63,25 @@ export class PatientsController {
   @Get()
   findAll(@Query() query: ListPatientsDto) {
     return this.patients.findAll(query);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @ApiOperation({
+    summary:
+      'Exclui permanentemente o paciente e suas mensagens. Bloqueia envios PENDING.',
+  })
+  async remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    await this.patients.removeMany([id.toLowerCase()]);
+  }
+
+  @Post('bulk-delete')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Exclui até 100 pacientes e seu histórico em uma única transação. Bloqueia envios PENDING.',
+  })
+  removeMany(@Body() dto: DeletePatientsDto) {
+    return this.patients.removeMany(dto.patientIds);
   }
 }

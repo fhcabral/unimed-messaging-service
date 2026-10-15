@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import type { MessageTemplate, Patient } from '../../types';
+import type { MessageChannel, MessageTemplate, Patient } from '../../types';
+import { DEFAULT_EMAIL_SUBJECT } from '../../services/templates';
 import { Icon } from '../Icon/Icon';
 import { Feedback } from '../Feedback/Feedback';
 import styles from './TemplateSelect.module.css';
@@ -11,6 +12,8 @@ interface Props {
   loading: boolean;
   error: string;
   disabled: boolean;
+  channels: MessageChannel[];
+  onChannelToggle: (channel: MessageChannel) => void;
   onSelect: (id: string) => void;
   onCreate: () => void;
   onRetry: () => void;
@@ -23,6 +26,8 @@ export function TemplateSelect({
   loading,
   error,
   disabled,
+  channels,
+  onChannelToggle,
   onSelect,
   onCreate,
   onRetry,
@@ -100,11 +105,49 @@ export function TemplateSelect({
             Crie seu primeiro template no botão <strong>+</strong> ao lado.
           </p>
         )}
+        <fieldset className={styles.channels} disabled={disabled}>
+          <legend>Canais de envio</legend>
+          <div className={styles.channelOptions}>
+            <label>
+              <input
+                type="checkbox"
+                checked={channels.includes('SMS')}
+                onChange={() => onChannelToggle('SMS')}
+              />
+              <span>
+                <strong>SMS</strong>
+                <small>Simulado</small>
+              </span>
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={channels.includes('EMAIL')}
+                onChange={() => onChannelToggle('EMAIL')}
+              />
+              <span>
+                <strong>E-mail</strong>
+                <small>Real via SMTP</small>
+              </span>
+            </label>
+          </div>
+          {!channels.length && <p role="status">Selecione pelo menos um canal.</p>}
+        </fieldset>
+        {channels.includes('EMAIL') && (
+          <div className={styles.emailWarning}>
+            <Icon name="info" size={15} />
+            <p>E-mail é um envio real quando o SMTP está configurado.</p>
+          </div>
+        )}
         <div className={styles.previewHeader}>
           <span>
             <Icon name="message" size={13} /> PRÉ-VISUALIZAÇÃO
           </span>
-          <span>SMS</span>
+          <span>
+            {channels.length
+              ? channels.map((channel) => (channel === 'SMS' ? 'SMS' : 'E-mail')).join(' + ')
+              : 'Sem canal'}
+          </span>
         </div>
         <div className={styles.preview} aria-live="polite">
           {selected ? (
@@ -113,6 +156,12 @@ export function TemplateSelect({
                 <span className={styles.conversationDot} />
                 Mensagem de acompanhamento
               </div>
+              {channels.includes('EMAIL') && (
+                <div className={styles.subject}>
+                  <span>Assunto do e-mail</span>
+                  <strong>{selected.subject?.trim() || DEFAULT_EMAIL_SUBJECT}</strong>
+                </div>
+              )}
               <div className={styles.bubble}>{preview}</div>
               <span className={styles.characterCount}>
                 {preview?.length.toLocaleString('pt-BR')} caracteres
@@ -141,7 +190,8 @@ export function TemplateSelect({
       <footer className={styles.footer}>
         <span className={styles.dot} />
         <p>
-          <strong>Ambiente de demonstração</strong>O envio é simulado. Nenhum SMS real será enviado.
+          <strong>SMS simulado · E-mail real</strong>SMS usa o mock existente. E-mail depende de
+          SMTP configurado e da sua confirmação de envio.
         </p>
       </footer>
     </section>

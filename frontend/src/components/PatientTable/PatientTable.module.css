@@ -108,6 +108,49 @@
 .notice {
   padding: 12px 20px 0;
 }
+.selectionActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+.deleteSelected {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a04450;
+  cursor: pointer;
+  font-size: 11px;
+}
+.deleteSelected:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.table .actionsCell {
+  width: 45px;
+  padding-left: 0;
+  padding-right: 15px;
+  text-align: right;
+  position: sticky;
+  right: 0;
+  background: white;
+}
+.table .selectedRow .actionsCell {
+  background: #f2faf6;
+}
+.deleteButton {
+  color: #a66c75;
+  width: 31px;
+  height: 31px;
+  border-color: transparent;
+}
+.deleteButton:hover:not(:disabled) {
+  color: #9b3540;
+  border-color: #ebc5cb;
+  background: #fff1f2;
+}
 .tableWrap {
   width: 100%;
   overflow-x: auto;
@@ -175,6 +218,12 @@
   overflow-wrap: anywhere;
   font-weight: 550;
   color: #314754;
+}
+.email {
+  min-width: 180px;
+  max-width: 240px;
+  overflow-wrap: anywhere;
+  color: #6a7b85;
 }
 .phone {
   font-variant-numeric: tabular-nums;

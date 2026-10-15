@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { MessageTemplate, PaginatedResponse, Patient } from '../../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { MessageChannel, MessageTemplate, PaginatedResponse, Patient } from '../../types';
 import { API_URL, getApiError } from '../../services/api';
-import { listPatients } from '../../services/patients';
+import { deletePatients, listPatients } from '../../services/patients';
 import { listTemplates } from '../../services/templates';
 import { MAX_SEND_PATIENTS } from '../../services/messages';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -11,6 +11,7 @@ import { TemplateSelect } from '../../components/TemplateSelect/TemplateSelect';
 import { TemplateModal } from '../../components/TemplateModal/TemplateModal';
 import { SendMessageBar } from '../../components/SendMessageBar/SendMessageBar';
 import { Feedback } from '../../components/Feedback/Feedback';
+import { Dialog } from '../../components/Dialog/Dialog';
 import { Icon } from '../../components/Icon/Icon';
 import styles from './Dashboard.module.css';
 
@@ -34,6 +35,13 @@ export function Dashboard() {
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateCreated, setTemplateCreated] = useState(false);
   const [sending, setSending] = useState(false);
+  const [channels, setChannels] = useState<MessageChannel[]>(['SMS']);
+  const [deleteTargets, setDeleteTargets] = useState<Patient[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteNotice, setDeleteNotice] = useState('');
+  const deleteInFlight = useRef(false);
+  const busy = sending || deleting;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,7 +93,7 @@ export function Dashboard() {
   }, [templatesRevision]);
 
   function togglePatients(patients: Patient[], select: boolean) {
-    if (sending) return;
+    if (busy) return;
     const next = new Map(selection);
     for (const patient of patients) {
       if (select) next.set(patient.id, patient);
@@ -112,6 +120,45 @@ export function Dashboard() {
     setTemplateModalOpen(false);
     setTemplateCreated(true);
     setTemplatesRevision((value) => value + 1);
+  }
+
+  function requestDelete(patients: Patient[]) {
+    if (busy || !patients.length) return;
+    setDeleteError('');
+    setDeleteNotice('');
+    setDeleteTargets(patients);
+  }
+
+  async function confirmDelete() {
+    if (deleteInFlight.current || !deleteTargets.length || sending) return;
+    deleteInFlight.current = true;
+    setDeleting(true);
+    setDeleteError('');
+    const patientIds = deleteTargets.map((patient) => patient.id);
+    try {
+      const result = await deletePatients(patientIds);
+      setSelection((current) => {
+        const next = new Map(current);
+        for (const id of patientIds) next.delete(id);
+        return next;
+      });
+      setSelectionError('');
+      setDeleteTargets([]);
+      setDeleteNotice(
+        `${result.deleted} ${result.deleted === 1 ? 'paciente excluído' : 'pacientes excluídos'} com o histórico vinculado.`,
+      );
+      setPatientsRevision((value) => value + 1);
+    } catch (error) {
+      setDeleteError(
+        getApiError(
+          error,
+          'Não foi possível confirmar a exclusão. Atualize a lista antes de tentar novamente.',
+        ),
+      );
+    } finally {
+      deleteInFlight.current = false;
+      setDeleting(false);
+    }
   }
 
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
@@ -176,7 +223,7 @@ export function Dashboard() {
           </div>
           <span className={styles.demoBadge}>
             <span />
-            Envio simulado
+            SMS simulado · E-mail real
           </span>
         </header>
         <main id="conteudo" className={styles.main}>
@@ -187,7 +234,7 @@ export function Dashboard() {
               <p>Organize seus pacientes e transforme mensagens em cuidado.</p>
             </div>
             <CsvImporter
-              disabled={sending}
+              disabled={busy}
               onImported={() => {
                 setSearch('');
                 setPage(1);
@@ -225,6 +272,11 @@ export function Dashboard() {
               </Feedback>
             </div>
           )}
+          {deleteNotice && (
+            <div className={styles.createdNotice}>
+              <Feedback tone="success">{deleteNotice}</Feedback>
+            </div>
+          )}
           <div id="pacientes" className={styles.grid}>
             <PatientTable
               response={response}
@@ -234,7 +286,9 @@ export function Dashboard() {
               page={page}
               limit={limit}
               selectedIds={selectedIds}
-              disabled={sending}
+              disabled={busy}
+              onDelete={requestDelete}
+              onDeleteSelected={() => requestDelete([...selection.values()])}
               selectionError={selectionError}
               onSearch={(value) => {
                 setSearch(value);
@@ -255,7 +309,15 @@ export function Dashboard() {
               samplePatient={samplePatient}
               loading={templatesLoading}
               error={templatesError}
-              disabled={sending}
+              disabled={busy}
+              channels={channels}
+              onChannelToggle={(channel) =>
+                setChannels((current) =>
+                  current.includes(channel)
+                    ? current.filter((item) => item !== channel)
+                    : [...current, channel],
+                )
+              }
               onSelect={setSelectedTemplateId}
               onCreate={() => setTemplateModalOpen(true)}
               onRetry={() => setTemplatesRevision((value) => value + 1)}
@@ -264,6 +326,11 @@ export function Dashboard() {
           <SendMessageBar
             patientIds={[...selectedIds]}
             template={selectedTemplate}
+            channels={channels}
+            missingContacts={{
+              SMS: [...selection.values()].filter((patient) => !patient.phone).length,
+              EMAIL: [...selection.values()].filter((patient) => !patient.email).length,
+            }}
             onBusyChange={setSending}
             onComplete={clearSelection}
           />
@@ -280,6 +347,59 @@ export function Dashboard() {
       </div>
       {templateModalOpen && (
         <TemplateModal onClose={() => setTemplateModalOpen(false)} onCreated={templateSaved} />
+      )}
+      {deleteTargets.length > 0 && (
+        <Dialog
+          title={
+            deleteTargets.length === 1
+              ? 'Excluir paciente?'
+              : `Excluir ${deleteTargets.length} pacientes?`
+          }
+          description="Esta ação é permanente e não pode ser desfeita."
+          busy={deleting}
+          onClose={() => setDeleteTargets([])}
+        >
+          <div className={styles.deleteBody}>
+            {deleteTargets.length === 1 ? (
+              <p>
+                Deseja excluir <strong>{deleteTargets[0]?.name}</strong>?
+              </p>
+            ) : (
+              <p>
+                Serão excluídos os <strong>{deleteTargets.length} pacientes selecionados</strong>,
+                inclusive de outras páginas.
+              </p>
+            )}
+            <Feedback tone="warning">
+              O cadastro e todas as mensagens do histórico desses pacientes serão apagados.
+              Templates serão mantidos. Mensagens já enviadas não podem ser canceladas por esta
+              ação.
+            </Feedback>
+            {deleteError && <Feedback tone="error">{deleteError}</Feedback>}
+          </div>
+          <footer className={styles.deleteFooter}>
+            <button
+              type="button"
+              className="button button-secondary"
+              data-initial-focus="true"
+              disabled={deleting}
+              onClick={() => setDeleteTargets([])}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className={`button ${styles.deleteConfirm}`}
+              disabled={deleting}
+              onClick={() => {
+                void confirmDelete();
+              }}
+            >
+              {deleting ? <span className="spinner" /> : <Icon name="trash" size={17} />}
+              {deleting ? 'Excluindo…' : 'Excluir definitivamente'}
+            </button>
+          </footer>
+        </Dialog>
       )}
     </div>
   );

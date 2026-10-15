@@ -16,6 +16,9 @@ export class MessageTemplate {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  subject: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

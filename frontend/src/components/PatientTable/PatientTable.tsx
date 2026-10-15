@@ -21,10 +21,12 @@ interface Props {
   onToggle: (patients: Patient[], select: boolean) => void;
   onClear: () => void;
   onRetry: () => void;
+  onDelete: (patients: Patient[]) => void;
+  onDeleteSelected: () => void;
 }
 
-function formatPhone(phone: string) {
-  return phone.replace(/^\+55(\d{2})(\d{4,5})(\d{4})$/, '+55 ($1) $2-$3');
+function formatPhone(phone: string | null) {
+  return phone ? phone.replace(/^\+55(\d{2})(\d{4,5})(\d{4})$/, '+55 ($1) $2-$3') : 'Não informado';
 }
 
 function initials(name: string) {
@@ -50,6 +52,8 @@ export function PatientTable({
   onToggle,
   onClear,
   onRetry,
+  onDelete,
+  onDeleteSelected,
 }: Props) {
   const selectAll = useRef<HTMLInputElement>(null);
   const searchId = useId();
@@ -85,12 +89,12 @@ export function PatientTable({
         <div className={styles.search}>
           <Icon name="search" size={18} />
           <label htmlFor={searchId} className="sr-only">
-            Buscar paciente por nome ou telefone
+            Buscar paciente por nome, telefone ou e-mail
           </label>
           <input
             id={searchId}
             type="search"
-            placeholder="Buscar por nome ou telefone…"
+            placeholder="Buscar por nome, telefone ou e-mail…"
             value={search}
             maxLength={160}
             disabled={disabled}
@@ -114,9 +118,20 @@ export function PatientTable({
           <span className={styles.selectionHint}>de até {MAX_SEND_PATIENTS} por envio</span>
         </span>
         {selectedIds.size > 0 && (
-          <button type="button" className="text-button" onClick={onClear} disabled={disabled}>
-            Limpar seleção
-          </button>
+          <div className={styles.selectionActions}>
+            <button
+              type="button"
+              className={styles.deleteSelected}
+              onClick={onDeleteSelected}
+              disabled={disabled}
+            >
+              <Icon name="trash" size={14} />
+              Excluir selecionados
+            </button>
+            <button type="button" className="text-button" onClick={onClear} disabled={disabled}>
+              Limpar seleção
+            </button>
+          </div>
         )}
       </div>
       {selectionError && (
@@ -148,12 +163,16 @@ export function PatientTable({
               </th>
               <th scope="col">Nome do paciente</th>
               <th scope="col">Telefone</th>
+              <th scope="col">E-mail</th>
+              <th scope="col">
+                <span className="sr-only">Ações</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3} className={styles.stateCell}>
+                <td colSpan={5} className={styles.stateCell}>
                   <div className={styles.state}>
                     <span className="spinner spinner-dark" />
                     <strong>Carregando pacientes…</strong>
@@ -162,7 +181,7 @@ export function PatientTable({
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={3} className={styles.stateCell}>
+                <td colSpan={5} className={styles.stateCell}>
                   <div className={styles.state}>
                     <span className={styles.emptyIcon}>
                       <Icon name="alert" size={26} />
@@ -183,7 +202,7 @@ export function PatientTable({
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={3} className={styles.stateCell}>
+                <td colSpan={5} className={styles.stateCell}>
                   <div className={styles.state}>
                     <span className={styles.emptyIcon}>
                       <Icon name={search ? 'search' : 'patients'} size={28} />
@@ -193,7 +212,7 @@ export function PatientTable({
                     </h3>
                     <p>
                       {search
-                        ? 'Tente outro nome ou busque pelo número do telefone.'
+                        ? 'Tente outro nome, telefone ou endereço de e-mail.'
                         : 'Importe um arquivo CSV para selecionar pacientes e preparar sua primeira mensagem.'}
                     </p>
                     {search && (
@@ -236,6 +255,19 @@ export function PatientTable({
                     </span>
                   </td>
                   <td className={styles.phone}>{formatPhone(patient.phone)}</td>
+                  <td className={styles.email}>{patient.email || 'Não informado'}</td>
+                  <td className={styles.actionsCell}>
+                    <button
+                      type="button"
+                      className={`icon-button ${styles.deleteButton}`}
+                      aria-label={`Excluir ${patient.name}`}
+                      title="Excluir paciente"
+                      disabled={disabled}
+                      onClick={() => onDelete([patient])}
+                    >
+                      <Icon name="trash" size={16} />
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

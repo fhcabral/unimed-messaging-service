@@ -1,3 +1,5 @@
+import { isEmail } from 'class-validator';
+
 export function validateEnvironment(env: Record<string, unknown>) {
   const port = (key: string, fallback: number) => {
     const value = Number(env[key] ?? fallback);
@@ -38,8 +40,31 @@ export function validateEnvironment(env: Record<string, unknown>) {
       );
     }
   }
+  const smtp: Record<string, string> = {};
+  for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM']) {
+    if (env[key] !== undefined && typeof env[key] !== 'string') {
+      throw new Error(`${key} must be a string`);
+    }
+    const value = env[key] ?? '';
+    smtp[key] = key === 'SMTP_PASS' ? value : value.trim();
+  }
+  if (smtp.SMTP_FROM && !isEmail(smtp.SMTP_FROM))
+    throw new Error(
+      'SMTP_FROM must be a single email address without a display name',
+    );
+  if (
+    env.SMTP_SECURE !== undefined &&
+    env.SMTP_SECURE !== '' &&
+    env.SMTP_SECURE !== 'true' &&
+    env.SMTP_SECURE !== 'false'
+  ) {
+    throw new Error('SMTP_SECURE must be true or false');
+  }
   return {
     ...env,
+    ...smtp,
+    SMTP_PORT: env.SMTP_PORT === '' ? 587 : port('SMTP_PORT', 587),
+    SMTP_SECURE: env.SMTP_SECURE || 'false',
     PORT: port('PORT', 3000),
     DB_PORT: port('DB_PORT', 5432),
     CORS_ORIGINS: origins.join(','),

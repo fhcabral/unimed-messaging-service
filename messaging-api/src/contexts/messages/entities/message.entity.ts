@@ -16,6 +16,11 @@ export enum MessageStatus {
   FAILED = 'FAILED',
 }
 
+export enum MessageChannel {
+  SMS = 'SMS',
+  EMAIL = 'EMAIL',
+}
+
 @Entity('messages')
 export class Message {
   @PrimaryGeneratedColumn('uuid')
@@ -45,6 +50,17 @@ export class Message {
 
   @Column({ type: 'text' })
   content: string;
+
+  @Column({
+    type: 'enum',
+    enum: MessageChannel,
+    enumName: 'message_channel_enum',
+    default: MessageChannel.SMS,
+  })
+  channel: MessageChannel;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  subject: string | null;
 
   @Column({
     type: 'enum',

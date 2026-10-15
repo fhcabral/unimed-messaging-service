@@ -5,7 +5,7 @@ import { PaginationDto } from '../../../common/pagination.dto';
 
 export class ListPatientsDto extends PaginationDto {
   @ApiPropertyOptional({
-    description: 'Busca por nome ou telefone',
+    description: 'Busca por nome, telefone ou e-mail',
     maxLength: 160,
   })
   @IsOptional()

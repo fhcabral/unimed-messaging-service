@@ -270,6 +270,33 @@
   gap: 22px;
   scroll-margin-top: 20px;
 }
+.deleteBody {
+  padding: 24px 26px;
+  display: grid;
+  gap: 16px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.deleteBody > p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.deleteFooter {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 19px 26px;
+  border-top: 1px solid var(--border);
+}
+.deleteConfirm {
+  color: white;
+  background: #ac4352;
+  border-color: #ac4352;
+}
+.deleteConfirm:hover:not(:disabled) {
+  background: #903544;
+}
 .createdNotice {
   margin-bottom: 18px;
 }

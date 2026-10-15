@@ -16,8 +16,9 @@ export function TemplateModal({
   onCreated: (template: MessageTemplate) => void;
 }) {
   const [name, setName] = useState('');
+  const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; content?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; subject?: string; content?: string }>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const locked = useRef(false);
@@ -29,6 +30,8 @@ export function TemplateModal({
     if (!name.trim()) fields.name = 'Informe o título do template.';
     else if (name.trim().length > 120 || name.includes('\0'))
       fields.name = 'Use até 120 caracteres válidos.';
+    if (subject.trim().length > 255 || /[\r\n\0]/.test(subject))
+      fields.subject = 'Use até 255 caracteres, sem quebras de linha ou caracteres nulos.';
     if (!content.trim()) fields.content = 'Escreva o conteúdo da mensagem.';
     else if (content.trim().length > 1600 || content.includes('\0'))
       fields.content = 'Use até 1.600 caracteres válidos.';
@@ -38,13 +41,21 @@ export function TemplateModal({
     setErrors(fields);
     setError('');
     if (Object.keys(fields).length) {
-      document.getElementById(fields.name ? 'template-name' : 'template-content')?.focus();
+      document
+        .getElementById(
+          fields.name ? 'template-name' : fields.subject ? 'template-subject' : 'template-content',
+        )
+        ?.focus();
       return;
     }
     locked.current = true;
     setSaving(true);
     try {
-      const created = await createTemplate({ name: name.trim(), content: content.trim() });
+      const created = await createTemplate({
+        name: name.trim(),
+        content: content.trim(),
+        subject: subject.trim() || undefined,
+      });
       onCreated(created);
     } catch (cause) {
       setError(
@@ -92,6 +103,31 @@ export function TemplateModal({
             {errors.name && (
               <p className="field-error" id="template-name-error">
                 {errors.name}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="field-label" htmlFor="template-subject">
+              Assunto do e-mail <span>(opcional)</span>
+            </label>
+            <input
+              id="template-subject"
+              className="field-input"
+              value={subject}
+              onChange={(event) => setSubject(event.target.value)}
+              placeholder="Mensagem de acompanhamento"
+              maxLength={255}
+              disabled={saving}
+              aria-invalid={!!errors.subject}
+              aria-describedby="template-subject-help"
+            />
+            <p className={styles.contentMeta} id="template-subject-help">
+              Somente para e-mail. Se vazio, usa “Mensagem de acompanhamento”. O assunto é literal,
+              sem variáveis.
+            </p>
+            {errors.subject && (
+              <p className="field-error" role="alert">
+                {errors.subject}
               </p>
             )}
           </div>

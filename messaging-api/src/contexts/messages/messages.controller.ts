@@ -13,7 +13,7 @@ export class MessagesController {
   @HttpCode(200)
   @ApiOperation({
     summary:
-      'Simula envios para até 100 pacientes; SENT significa aceite pelo mock, sem entrega real',
+      'Envia para até 100 pacientes por canal: SMS mock e/ou e-mail SMTP real. SENT indica aceite do provider, não entrega. Sem channels, mantém SMS legado.',
   })
   send(@Body() dto: SendMessagesDto) {
     return this.messages.send(dto);

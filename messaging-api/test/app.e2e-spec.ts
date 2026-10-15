@@ -85,7 +85,7 @@ describe('API + PostgreSQL (isolated temporary schema)', () => {
       .expect(413);
     await request(app.getHttpServer())
       .post('/patients/import')
-      .attach('file', Buffer.from('name,email\nA,b'), 'patients.csv')
+      .attach('file', Buffer.from('name,address\nA,b'), 'patients.csv')
       .expect(400);
   });
 
@@ -233,7 +233,9 @@ describe('API + PostgreSQL (isolated temporary schema)', () => {
   });
 
   it('reverts and reapplies the migration without synchronize', async () => {
-    await database.undoLastMigration();
+    for (let index = 0; index < database.migrations.length; index++) {
+      await database.undoLastMigration();
+    }
     expect(await database.showMigrations()).toBe(true);
     await database.runMigrations();
     expect(await database.getRepository(Patient).count()).toBe(0);

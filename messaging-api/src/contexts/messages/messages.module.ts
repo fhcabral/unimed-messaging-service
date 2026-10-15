@@ -7,12 +7,14 @@ import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { MockSmsProvider } from './providers/mock-sms.provider';
 import { SMS_PROVIDER } from './providers/sms-provider.interface';
+import { EmailProvider } from './providers/email.provider';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Message, Patient, MessageTemplate])],
   controllers: [MessagesController],
   providers: [
     MessagesService,
+    EmailProvider,
     { provide: SMS_PROVIDER, useClass: MockSmsProvider },
   ],
 })

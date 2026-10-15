@@ -31,7 +31,9 @@ export function CsvImporter({
       return;
     }
     if (file.size === 0) {
-      setError('O arquivo está vazio. Inclua o cabeçalho name,phone e os pacientes.');
+      setError(
+        'O arquivo está vazio. Inclua name e ao menos uma coluna de contato: phone ou email.',
+      );
       return;
     }
     if (file.size > MAX_CSV_BYTES) {
@@ -82,12 +84,13 @@ export function CsvImporter({
         {loading ? 'Importando pacientes…' : 'Importar pacientes'}
       </button>
       <span className={styles.hint}>CSV · até 1 MiB · 1.000 registros</span>
+      <span className={styles.hint}>Colunas: name,phone,email · CSV antigo também é aceito</span>
       {error && <Feedback tone="error">{error}</Feedback>}
       {result && (
         <Feedback tone={result.invalid ? 'warning' : 'success'} title="Importação concluída">
           {result.imported} importados · {result.ignored} ignorados · {result.invalid} inválidos.
           {result.ignored > 0 && (
-            <span className={styles.detail}>Telefones duplicados foram ignorados.</span>
+            <span className={styles.detail}>Telefones ou e-mails duplicados foram ignorados.</span>
           )}
         </Feedback>
       )}

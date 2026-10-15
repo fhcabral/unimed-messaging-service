@@ -6,6 +6,7 @@ import { MessageTemplate } from '../templates/entities/message-template.entity';
 import { Message, MessageStatus } from './entities/message.entity';
 import { MessagesService } from './messages.service';
 import { MockSmsProvider } from './providers/mock-sms.provider';
+import { EmailProvider } from './providers/email.provider';
 
 describe('MessagesService', () => {
   const patients = [
@@ -35,6 +36,7 @@ describe('MessagesService', () => {
     { findBy } as unknown as Repository<Patient>,
     { findOneBy } as unknown as Repository<MessageTemplate>,
     provider,
+    new EmailProvider(new ConfigService({})),
   );
 
   beforeEach(() => {

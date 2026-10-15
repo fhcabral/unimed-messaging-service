@@ -60,6 +60,12 @@
   display: block;
   margin-top: 6px;
 }
+.channelResult {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid currentColor;
+  border-color: #00000010;
+}
 .wrapper strong.inline {
   display: inline;
 }

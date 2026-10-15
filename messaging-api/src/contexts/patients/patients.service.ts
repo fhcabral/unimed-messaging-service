@@ -1,10 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { parse } from 'csv-parse/sync';
+import { isEmail } from 'class-validator';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Patient } from './entities/patient.entity';
 import { ListPatientsDto } from './dto/list-patients.dto';
+import { Message, MessageStatus } from '../messages/entities/message.entity';
 
 export const MAX_CSV_BYTES = 1024 * 1024;
 export const MAX_IMPORT_ROWS = 1000;
@@ -37,10 +44,12 @@ export class PatientsService {
     if (
       !headers ||
       headers.filter((h) => h === 'name').length !== 1 ||
-      headers.filter((h) => h === 'phone').length !== 1
+      (!headers.includes('phone') && !headers.includes('email')) ||
+      headers.filter((h) => h === 'phone').length > 1 ||
+      headers.filter((h) => h === 'email').length > 1
     ) {
       throw new BadRequestException(
-        'CSV deve conter as colunas name e phone, sem duplicatas.',
+        'CSV deve conter name e pelo menos uma coluna de contato (phone ou email), sem duplicatas.',
       );
     }
     rows = rows.filter((row) => row.some((cell) => cell.trim() !== ''));
@@ -48,11 +57,12 @@ export class PatientsService {
       throw new BadRequestException(
         `CSV limitado a ${MAX_IMPORT_ROWS} registros.`,
       );
-    const values: Pick<Patient, 'name' | 'phone'>[] = [];
+    const values: Pick<Patient, 'name' | 'phone' | 'email'>[] = [];
     let invalid = 0;
     for (const row of rows) {
       const name = row[headers.indexOf('name')]?.trim();
       const rawPhone = row[headers.indexOf('phone')]?.trim() ?? '';
+      const email = row[headers.indexOf('email')]?.trim().toLowerCase() || null;
 
       const phone = /^[+\d\s().-]+$/.test(rawPhone)
         ? parsePhoneNumberFromString(rawPhone, 'BR')
@@ -64,14 +74,14 @@ export class PatientsService {
         [...name].some(
           (char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127,
         ) ||
-        !phone ||
-        phone.country !== 'BR' ||
-        !phone.isValid()
+        (!rawPhone && !email) ||
+        (rawPhone && (!phone || phone.country !== 'BR' || !phone.isValid())) ||
+        (email && (email.length > 254 || !isEmail(email)))
       ) {
         invalid++;
         continue;
       }
-      values.push({ name, phone: phone.number });
+      values.push({ name, phone: phone?.number ?? null, email });
     }
     let imported = 0;
     if (values.length) {
@@ -94,7 +104,7 @@ export class PatientsService {
     if (search) {
       const escaped = search.replace(/[\\%_]/g, '\\$&');
       query.where(
-        '(patient.name ILIKE :search OR patient.phone ILIKE :search)',
+        '(patient.name ILIKE :search OR patient.phone ILIKE :search OR patient.email ILIKE :search)',
         { search: `%${escaped}%` },
       );
     }
@@ -105,5 +115,34 @@ export class PatientsService {
       .take(limit)
       .getManyAndCount();
     return { data, total, page, limit };
+  }
+
+  async removeMany(patientIds: string[]) {
+    return this.patients.manager.transaction(async (manager) => {
+      // Lock parents before removing children, preventing new sends while deletion commits.
+      const patients = await manager
+        .getRepository(Patient)
+        .createQueryBuilder('patient')
+        .where('patient.id IN (:...patientIds)', { patientIds })
+        .orderBy('patient.id', 'ASC')
+        .setLock('pessimistic_write')
+        .getMany();
+      if (patients.length !== patientIds.length) {
+        throw new NotFoundException(
+          'Um ou mais pacientes não foram encontrados. Nenhuma exclusão foi realizada.',
+        );
+      }
+      const hasPending = await manager
+        .getRepository(Message)
+        .existsBy({ patientId: In(patientIds), status: MessageStatus.PENDING });
+      if (hasPending) {
+        throw new ConflictException(
+          'Há envios pendentes para um dos pacientes. Aguarde a conclusão antes de excluir. Nenhum paciente foi excluído.',
+        );
+      }
+      await manager.delete(Message, { patientId: In(patientIds) });
+      await manager.delete(Patient, { id: In(patientIds) });
+      return { deleted: patients.length };
+    });
   }
 }
