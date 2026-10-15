@@ -1,0 +1,39 @@
+.feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 15px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.feedback > svg {
+  margin-top: 2px;
+}
+.feedback strong {
+  display: block;
+  font-weight: 650;
+  margin-bottom: 2px;
+}
+.info {
+  color: #345d79;
+  background: #f2f7fb;
+  border-color: #dce8f1;
+}
+.success {
+  color: #21634a;
+  background: #edf8f2;
+  border-color: #cce6d7;
+}
+.error {
+  color: #9b3540;
+  background: #fff4f4;
+  border-color: #f0d3d7;
+}
+.warning {
+  color: #805b19;
+  background: #fffaed;
+  border-color: #ecdfba;
+}
