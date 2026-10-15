@@ -1,0 +1,69 @@
+.fields {
+  display: grid;
+  gap: 23px;
+  padding: 25px 26px;
+}
+.fields label {
+  display: block;
+  margin-bottom: 9px;
+}
+.fields label > span {
+  color: #7d9990;
+}
+.fields textarea {
+  min-height: 150px;
+  line-height: 1.8;
+  resize: vertical;
+}
+.contentMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 9px;
+}
+.contentMeta code {
+  font-size: 10px;
+  color: var(--green);
+}
+.tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f4f8fa;
+  color: #718c9b;
+  padding: 13px;
+  border-radius: 9px;
+}
+.tip svg {
+  margin-top: 2px;
+}
+.tip p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.tip code {
+  color: #426856;
+  font-size: 11px;
+}
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 19px 26px;
+  border-top: 1px solid var(--border);
+  background: #fbfcfc;
+}
+@media (max-width: 540px) {
+  .fields {
+    padding: 23px 20px;
+  }
+  .footer {
+    padding: 18px 20px;
+  }
+}

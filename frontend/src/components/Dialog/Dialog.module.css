@@ -1,0 +1,39 @@
+.dialog {
+  width: min(540px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  color: var(--text);
+  box-shadow: 0 24px 100px #0e2b3940;
+  overflow-y: auto;
+}
+.dialog::backdrop {
+  background: #0d29386b;
+  backdrop-filter: blur(3px);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 25px 26px 21px;
+  border-bottom: 1px solid var(--border);
+}
+.header h2 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.5px;
+  font-weight: 650;
+}
+.header p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (max-width: 540px) {
+  .header {
+    padding: 22px 20px 18px;
+  }
+}

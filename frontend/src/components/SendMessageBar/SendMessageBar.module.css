@@ -1,0 +1,127 @@
+.wrapper {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 21px 24px;
+  background: #fff;
+  border: 1px solid #dce6e3;
+  border-radius: 13px;
+  box-shadow: 0 3px 9px #173f4c03;
+}
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+}
+.icon {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  background: #edf5f1;
+  border-radius: 11px;
+  color: #5a947e;
+  flex: 0 0 auto;
+}
+.summary strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+}
+.summary p {
+  margin: 6px 0 0;
+  color: #82909a;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.summary p > span {
+  color: #667d88;
+}
+.action {
+  display: flex;
+  align-items: center;
+  gap: 19px;
+}
+.limit {
+  color: #8a969c;
+  font-size: 10px;
+}
+.resultNote {
+  display: block;
+  margin-top: 6px;
+}
+.wrapper strong.inline {
+  display: inline;
+}
+.confirmBody {
+  display: grid;
+  gap: 18px;
+  padding: 25px 26px;
+}
+.confirmDetails {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 20px;
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fbfcfc;
+}
+.confirmDetails span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.confirmDetails strong {
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.confirmFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 19px 26px;
+  border-top: 1px solid var(--border);
+  background: #fbfcfc;
+}
+@media (max-width: 1100px) {
+  .limit {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .bar {
+    align-items: stretch;
+    padding: 20px 17px;
+    gap: 20px;
+  }
+  .summary {
+    flex-basis: 100%;
+  }
+  .action,
+  .action button {
+    width: 100%;
+  }
+  .confirmBody {
+    padding: 23px 20px;
+  }
+  .confirmFooter {
+    padding: 18px 20px;
+  }
+  .confirmDetails {
+    grid-template-columns: 1fr;
+  }
+}

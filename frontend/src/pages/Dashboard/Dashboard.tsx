@@ -1,0 +1,286 @@
+import { useEffect, useMemo, useState } from 'react';
+import type { MessageTemplate, PaginatedResponse, Patient } from '../../types';
+import { API_URL, getApiError } from '../../services/api';
+import { listPatients } from '../../services/patients';
+import { listTemplates } from '../../services/templates';
+import { MAX_SEND_PATIENTS } from '../../services/messages';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { CsvImporter } from '../../components/CsvImporter/CsvImporter';
+import { PatientTable } from '../../components/PatientTable/PatientTable';
+import { TemplateSelect } from '../../components/TemplateSelect/TemplateSelect';
+import { TemplateModal } from '../../components/TemplateModal/TemplateModal';
+import { SendMessageBar } from '../../components/SendMessageBar/SendMessageBar';
+import { Feedback } from '../../components/Feedback/Feedback';
+import { Icon } from '../../components/Icon/Icon';
+import styles from './Dashboard.module.css';
+
+export function Dashboard() {
+  const [response, setResponse] = useState<PaginatedResponse<Patient> | null>(null);
+  const [patientsLoading, setPatientsLoading] = useState(true);
+  const [patientsError, setPatientsError] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search.trim());
+  const [patientsRevision, setPatientsRevision] = useState(0);
+  const [selection, setSelection] = useState<Map<string, Patient>>(new Map());
+  const selectedIds = useMemo(() => new Set(selection.keys()), [selection]);
+  const [selectionError, setSelectionError] = useState('');
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templatesError, setTemplatesError] = useState('');
+  const [templatesRevision, setTemplatesRevision] = useState(0);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templateCreated, setTemplateCreated] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setPatientsLoading(true);
+    setPatientsError('');
+    void listPatients({ page, limit, search: debouncedSearch || undefined }, controller.signal)
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        const lastPage = Math.max(1, Math.ceil(data.total / limit));
+        if (page > lastPage) {
+          setPage(lastPage);
+          return;
+        }
+        setResponse(data);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted)
+          setPatientsError(
+            getApiError(cause, 'Não foi possível carregar a lista. Tente novamente em instantes.'),
+          );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPatientsLoading(false);
+      });
+    return () => controller.abort();
+  }, [page, limit, debouncedSearch, patientsRevision]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setTemplatesLoading(true);
+    setTemplatesError('');
+    void listTemplates(controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setTemplates(data);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted)
+          setTemplatesError(
+            getApiError(
+              cause,
+              'Não foi possível carregar os templates. Tente novamente em instantes.',
+            ),
+          );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setTemplatesLoading(false);
+      });
+    return () => controller.abort();
+  }, [templatesRevision]);
+
+  function togglePatients(patients: Patient[], select: boolean) {
+    if (sending) return;
+    const next = new Map(selection);
+    for (const patient of patients) {
+      if (select) next.set(patient.id, patient);
+      else next.delete(patient.id);
+    }
+    if (next.size > MAX_SEND_PATIENTS) {
+      setSelectionError(
+        `Selecione no máximo ${MAX_SEND_PATIENTS} pacientes por envio. A seleção desta página não foi adicionada.`,
+      );
+      return;
+    }
+    setSelectionError('');
+    setSelection(next);
+  }
+
+  function clearSelection() {
+    setSelection(new Map());
+    setSelectionError('');
+  }
+
+  function templateSaved(template: MessageTemplate) {
+    setTemplates((current) => [template, ...current.filter((item) => item.id !== template.id)]);
+    setSelectedTemplateId(template.id);
+    setTemplateModalOpen(false);
+    setTemplateCreated(true);
+    setTemplatesRevision((value) => value + 1);
+  }
+
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+  const samplePatient = selection.values().next().value;
+  const tableLoading =
+    patientsLoading ||
+    search.trim() !== debouncedSearch ||
+    (!patientsError && !!response && (response.page !== page || response.limit !== limit));
+
+  return (
+    <div className={styles.shell}>
+      <a className="skip-link" href="#conteudo">
+        Pular para o conteúdo
+      </a>
+      <aside className={styles.sidebar} aria-label="Navegação principal">
+        <div className={styles.brand}>
+          <span className={styles.brandMark}>
+            <Icon name="cross" size={25} />
+          </span>
+          <div>
+            <strong>
+              Hospitalar<span className={styles.brandDot}>.</span>
+            </strong>
+            <span>PLATAFORMA DE MENSAGERIA</span>
+          </div>
+        </div>
+        <span className={styles.navLabel}>ÁREA DE TRABALHO</span>
+        <nav>
+          <a className={styles.activeNav} href="#pacientes" aria-current="page">
+            <Icon name="patients" size={19} />
+            <span>Pacientes e mensagens</span>
+            <span className={styles.navIndicator} />
+          </a>
+        </nav>
+        <div className={styles.sidebarGuide}>
+          <span className={styles.guideIcon}>
+            <Icon name="message" size={23} />
+          </span>
+          <h2>
+            O cuidado continua
+            <br />
+            depois do atendimento.
+          </h2>
+          <p>Prepare suas mensagens e mantenha a comunicação próxima de cada paciente.</p>
+          <span className={styles.guideLine} />
+        </div>
+        <div className={styles.sidebarFooter}>
+          <span className={styles.demoDot} />
+          <span>DEMONSTRAÇÃO LOCAL</span>
+          <span className={styles.version}>v0.1</span>
+        </div>
+      </aside>
+      <div className={styles.workspace}>
+        <header className={styles.topbar}>
+          <div className={styles.breadcrumb}>
+            <span className={styles.mobileBrand}>
+              <Icon name="cross" size={20} />
+            </span>
+            <span>Comunicação</span>
+            <Icon name="chevron-right" size={13} />
+            <strong>Pacientes e mensagens</strong>
+          </div>
+          <span className={styles.demoBadge}>
+            <span />
+            Envio simulado
+          </span>
+        </header>
+        <main id="conteudo" className={styles.main}>
+          <div className={styles.pageHeader}>
+            <div>
+              <span className={styles.eyebrow}>COMUNICAÇÃO COM PACIENTES</span>
+              <h1>Mensageria Hospitalar</h1>
+              <p>Organize seus pacientes e transforme mensagens em cuidado.</p>
+            </div>
+            <CsvImporter
+              disabled={sending}
+              onImported={() => {
+                setSearch('');
+                setPage(1);
+                setPatientsRevision((value) => value + 1);
+              }}
+            />
+          </div>
+          <ol className={styles.steps} aria-label="Como preparar um envio">
+            <li>
+              <span className={styles.stepNumber}>01</span>
+              <div>
+                <strong>Importe os pacientes</strong>
+                <p>Adicione sua lista em CSV</p>
+              </div>
+            </li>
+            <li>
+              <span className={styles.stepNumber}>02</span>
+              <div>
+                <strong>Prepare a mensagem</strong>
+                <p>Selecione um template</p>
+              </div>
+            </li>
+            <li>
+              <span className={styles.stepNumber}>03</span>
+              <div>
+                <strong>Revise e envie</strong>
+                <p>Confirme os destinatários</p>
+              </div>
+            </li>
+          </ol>
+          {templateCreated && (
+            <div className={styles.createdNotice}>
+              <Feedback tone="success">
+                Template cadastrado e selecionado. Sua mensagem já está disponível para envio.
+              </Feedback>
+            </div>
+          )}
+          <div id="pacientes" className={styles.grid}>
+            <PatientTable
+              response={response}
+              loading={tableLoading}
+              error={patientsError}
+              search={search}
+              page={page}
+              limit={limit}
+              selectedIds={selectedIds}
+              disabled={sending}
+              selectionError={selectionError}
+              onSearch={(value) => {
+                setSearch(value);
+                setPage(1);
+              }}
+              onPage={setPage}
+              onLimit={(value) => {
+                setLimit(value);
+                setPage(1);
+              }}
+              onToggle={togglePatients}
+              onClear={clearSelection}
+              onRetry={() => setPatientsRevision((value) => value + 1)}
+            />
+            <TemplateSelect
+              templates={templates}
+              selectedId={selectedTemplateId}
+              samplePatient={samplePatient}
+              loading={templatesLoading}
+              error={templatesError}
+              disabled={sending}
+              onSelect={setSelectedTemplateId}
+              onCreate={() => setTemplateModalOpen(true)}
+              onRetry={() => setTemplatesRevision((value) => value + 1)}
+            />
+          </div>
+          <SendMessageBar
+            patientIds={[...selectedIds]}
+            template={selectedTemplate}
+            onBusyChange={setSending}
+            onComplete={clearSelection}
+          />
+          <footer className={styles.footer}>
+            <p>
+              <Icon name="info" size={13} />
+              Demonstração local. Utilize somente dados fictícios.
+            </p>
+            <a href={`${API_URL}/docs`} target="_blank" rel="noreferrer">
+              Documentação da API <Icon name="external" size={12} />
+            </a>
+          </footer>
+        </main>
+      </div>
+      {templateModalOpen && (
+        <TemplateModal onClose={() => setTemplateModalOpen(false)} onCreated={templateSaved} />
+      )}
+    </div>
+  );
+}
