@@ -40,6 +40,14 @@ export function validateEnvironment(env: Record<string, unknown>) {
       );
     }
   }
+  const emailProvider = env.EMAIL_PROVIDER ?? 'MOCK';
+  if (emailProvider !== 'MOCK' && emailProvider !== 'SMTP') {
+    throw new Error('EMAIL_PROVIDER must be MOCK or SMTP');
+  }
+  const demoSeed = env.DEMO_SEED_ENABLED ?? 'false';
+  if (demoSeed !== 'true' && demoSeed !== 'false') {
+    throw new Error('DEMO_SEED_ENABLED must be true or false');
+  }
   const smtp: Record<string, string> = {};
   for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM']) {
     if (env[key] !== undefined && typeof env[key] !== 'string') {
@@ -63,6 +71,8 @@ export function validateEnvironment(env: Record<string, unknown>) {
   return {
     ...env,
     ...smtp,
+    EMAIL_PROVIDER: emailProvider,
+    DEMO_SEED_ENABLED: env.NODE_ENV === 'production' ? 'false' : demoSeed,
     SMTP_PORT: env.SMTP_PORT === '' ? 587 : port('SMTP_PORT', 587),
     SMTP_SECURE: env.SMTP_SECURE || 'false',
     PORT: port('PORT', 3000),

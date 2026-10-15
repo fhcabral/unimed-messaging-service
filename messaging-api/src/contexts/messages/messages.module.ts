@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+import { MockEmailProvider } from './providers/mock-email.provider';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Patient } from '../patients/entities/patient.entity';
@@ -14,8 +16,17 @@ import { EmailProvider } from './providers/email.provider';
   controllers: [MessagesController],
   providers: [
     MessagesService,
-    EmailProvider,
+    MockEmailProvider,
+    {
+      provide: EmailProvider,
+      inject: [ConfigService, MockEmailProvider],
+      useFactory: (config: ConfigService, mock: MockEmailProvider) =>
+        config.get<string>('EMAIL_PROVIDER', 'MOCK') === 'SMTP'
+          ? new EmailProvider(config)
+          : mock,
+    },
     { provide: SMS_PROVIDER, useClass: MockSmsProvider },
   ],
+  exports: [SMS_PROVIDER],
 })
 export class MessagesModule {}
