@@ -1,0 +1,20 @@
+.page { padding: 35px 36px; max-width: 1520px; margin: auto; }
+.header { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 30px; color: #243e4b; margin: 10px 0; letter-spacing: -1px; }
+.header p { font-size: 12px; color: #71838d; line-height: 1.7; margin: 0; }
+.eyebrow { color: #7b9696; font-size: 9px; letter-spacing: 1.5px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.explanation { margin: 26px 0 18px; }
+.messages { display: grid; gap: 12px; margin-bottom: 18px; }
+.card { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 20px; padding: 20px; }
+.filters label { display: grid; gap: 8px; font-size: 11px; min-width: 190px; }
+.total { font-size: 11px; color: #71838d; margin: 0 0 13px auto; }
+.error { display: grid; gap: 15px; padding: 30px; justify-items: start; }
+.pagination { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; font-size: 11px; }
+.pagination label, .pagination > div { display: flex; align-items: center; gap: 10px; }
+.pagination select { padding: 7px; border: 1px solid var(--border); border-radius: 6px; background: white; }
+.footnote { font-size: 11px; line-height: 1.8; color: #71838d; }
+.confirm { display: grid; gap: 16px; padding: 24px; font-size: 13px; line-height: 1.7; }
+.confirmActions { padding: 18px 24px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: end; gap: 10px; }
+@media (max-width: 800px) { .page { padding: 25px 16px; } .filters label { flex: 1; min-width: 160px; } }
