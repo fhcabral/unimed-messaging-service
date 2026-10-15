@@ -47,7 +47,6 @@ export class ExamNotificationService {
         result.total++;
         result[await this.deliver(claim)]++;
       } catch {
-        // Keep processing the remaining exams. Never blindly resend an uncertain claim.
         result.total++;
         result.uncertain++;
         this.logger.error(
@@ -80,8 +79,6 @@ export class ExamNotificationService {
     expected: NotificationStatus,
   ): Promise<Claim | null> {
     return this.database.transaction(async (manager) => {
-      // Same parent-first lock order as patient deletion; a committed PENDING message
-      // prevents deletion after this transaction releases the parent lock.
       const patient = await manager.getRepository(Patient).findOne({
         where: { id: candidate.patientId },
         lock: { mode: 'pessimistic_read' },
@@ -113,8 +110,6 @@ export class ExamNotificationService {
       exam.notificationStatus = NotificationStatus.PROCESSING;
       exam.processingStartedAt = new Date();
       exam.notificationMessageId = message.id;
-      // The previous error remains visible until a confirmed success; old FAILED
-      // Message rows are never overwritten when the user explicitly retries.
       await manager.save(Exam, exam);
       return { exam, patient, message };
     });
@@ -126,7 +121,10 @@ export class ExamNotificationService {
       if (!patient.phone) {
         failure = 'Paciente sem telefone para o canal SMS.';
       } else {
-        await this.sms.send(patient.phone, EXAM_NOTIFICATION_CONTENT);
+        await this.sms.send(patient.phone, EXAM_NOTIFICATION_CONTENT, {
+          examId: exam.id,
+          patientId: patient.id,
+        });
         this.logger.log(`SMS enviado, cliente ${patient.name}`);
       }
     } catch {

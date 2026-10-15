@@ -22,7 +22,11 @@
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
-    "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js"
+    "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js",
+    "demo:pending": "ts-node src/database/seeds/demo/demo-runner.ts pending",
+    "demo:released": "ts-node src/database/seeds/demo/demo-runner.ts released",
+    "demo:failed": "ts-node src/database/seeds/demo/demo-runner.ts failed",
+    "demo:reset": "ts-node src/database/seeds/demo/demo-runner.ts reset"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

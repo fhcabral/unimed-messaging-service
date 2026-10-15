@@ -73,6 +73,35 @@ Defina `SMS_MOCK_FAIL_ALL=true` no backend e reinicie para demonstrar falhas em 
 
 O MVP verifica pendências no bootstrap e por `POST /exams/process-pending`; não há monitoramento periódico. Não há criação manual de exames pela API. Uma atualização de `PENDING` para `RELEASED` pelo sistema de origem/banco define automaticamente a data de liberação e torna a notificação elegível; ela será processada na próxima verificação.
 
+### Cenários de demonstração
+
+Com o sistema iniciado por `make dev` ou `npm run dev`, use outro terminal na **raiz** do repositório. Os scripts TypeScript reutilizam a configuração TypeORM, sem HTTP, sem migrations automáticas e sem reiniciar o NestJS. Execute-os **somente em banco local de demonstração**; `NODE_ENV=production` bloqueia os comandos.
+
+| Comando | Comportamento esperado |
+| --- | --- |
+| `npm run demo:pending` | Cria três pacientes/exames fictícios `PENDING / NOT_ELIGIBLE`. Não recebem SMS ao processar. |
+| `npm run demo:released` | Cria três pacientes/exames fictícios `RELEASED / PENDING`. “Processar pendentes” envia a mensagem exata do desafio e registra `SENT`. |
+| `npm run demo:failed` | Cria três exames liberados. O mock rejeita somente o exame de `[Demo failed] Alice (fictício)`; os outros dois podem ser notificados normalmente. |
+| `npm run demo:reset` | Remove exclusivamente os exames e notificações dos cenários e seus pacientes sem outros vínculos. Preserva o seed padrão, templates, pacientes importados, exames externos e envios manuais. |
+
+Os mesmos comandos estão disponíveis dentro de `messaging-api`. Não é necessário editar o banco nem o `.env`. Os registros aparecem no dashboard com nomes iniciados por `[Demo pending]`, `[Demo released]` ou `[Demo failed]`.
+
+
+1. Inicie o sistema e aguarde a API ficar disponível.
+2. Em outro terminal, execute `npm run demo:released`.
+3. No dashboard **Exames**, clique em **Atualizar** e veja os novos exames liberados aguardando notificação.
+4. Clique em **Processar pendentes**. Confira no terminal do NestJS `SMS enviado, cliente ...` e, na tabela, **Notificado** e a data do envio. O histórico completo está em `GET /messages`, também disponível no Swagger.
+5. Processe novamente: esses exames não serão reenviados. Execute novamente `demo:released`: nenhum registro é duplicado e nenhum estado ou histórico é apagado.
+6. Execute `npm run demo:pending`, atualize e processe: esses três exames continuam aguardando liberação.
+7. Execute `npm run demo:failed`, atualize e processe: veja uma falha com erro controlado e dois sucessos. A falha é produzida pelo provider, sem gravar `FAILED` artificialmente. Envios manuais, inclusive para o mesmo paciente fictício, continuam usando o comportamento normal do mock.
+8. Para repetir a apresentação do início, execute `npm run demo:reset` e prepare novamente os cenários desejados.
+
+Os comandos são cumulativos e idempotentes: preparar novamente não restaura `SENT` ou `FAILED` para `PENDING`. A rejeição do cenário de falha depende dos UUIDs do exame/paciente e do telefone fictício reservado, sem ativar `SMS_MOCK_FAIL_ALL` nem afetar outros exames. Uma retentativa explícita do exame designado também falhará; use `demo:released` para mostrar sucesso. Se `SMS_MOCK_FAIL_ALL=true` já estiver configurado, a rejeição global continua valendo para todos os SMS.
+
+O reset é transacional e limitado a UUIDs/chaves exclusivos dos scripts, por isso não pede confirmação adicional. Pacientes com envios manuais ou exames externos são preservados. Notificações dos cenários em `PROCESSING` ou mensagens `PENDING` bloqueiam o reset até a conferência do resultado; nenhum dado é removido parcialmente.
+
+Prepare os cenários depois de iniciar a API para mostrar o estado anterior ao envio. Se reiniciar a API após prepará-los, o processamento automático do bootstrap poderá notificá-los antes de abrir o dashboard. Nenhum script é executado automaticamente pelo frontend ou pela inicialização.
+
 ## Funcionalidades adicionais do dashboard
 
 A navegação começa em **Exames** e mantém **Pacientes e Mensagens**. O dashboard mostra paciente, identificador, status, liberação, envio e erro controlado. Filtros acompanham o contrato paginado da API.
