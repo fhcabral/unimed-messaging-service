@@ -1,12 +1,14 @@
-﻿# Mensageria hospitalar — API do MVP
+# Mensageria hospitalar — API do MVP
 
-Back-end NestJS 11 + TypeORM + PostgreSQL. Importa pacientes via CSV, cadastra templates e registra envios por paciente e canal. **SMS continua com o MockSmsProvider original; EMAIL utiliza Nodemailer e SMTP real.** A interface React está em [`../frontend`](../frontend).
+Back-end NestJS 11 + TypeORM + PostgreSQL. Importa pacientes via CSV, cadastra templates e registra envios por paciente e canal. **SMS continua com o MockSmsProvider original; EMAIL é simulado por padrão e usa Nodemailer/SMTP somente com `EMAIL_PROVIDER=SMTP`. Exames liberados são notificados automaticamente no bootstrap.** A interface React está em [`../frontend`](../frontend).
 
 **Uso local, sem autenticação. Antes de usar dados reais de pacientes, proteja TODOS os endpoints (inclusive consultas e Swagger), implemente autorização e revise privacidade, retenção e segurança. Use apenas dados fictícios nesta demonstração.**
 
 ## Executar
 
-Pré-requisitos: Node.js 22+, npm e Docker Desktop com engine Linux iniciado. No PowerShell, a partir da raiz do repositório:
+Recomendado: execute `npm run setup` e `npm run dev` na raiz, conforme o [README principal](../README.md). Isso inicia também o frontend.
+
+Pré-requisitos: Node.js 22.12+, npm e Docker Desktop com engine Linux iniciado. No PowerShell, a partir da raiz do repositório:
 
 ```powershell
 cd messaging-api
@@ -24,11 +26,33 @@ O `.env.example` contém apenas valores de demonstração local. O `.env` não d
 
 Para simular rejeição de todos os SMS, defina `SMS_MOCK_FAIL_ALL=true` no `.env` e reinicie a API. Por padrão é `false`. Nenhuma configuração faz o mock enviar SMS real.
 
+## Exames e inicialização automática
+
+`DEMO_SEED_ENABLED=true` habilita pacientes, exames e template fictícios no bootstrap. O padrão interno é `false`; o `.env.example` usa `true` para demonstração. Em `NODE_ENV=production`, nunca executa seed. Nenhuma rota pública cria dados demonstrativos. O bootstrap aguarda o seed e então verifica exames liberados, mesmo que o React não esteja aberto. Migrations devem ter sido executadas antes; a aplicação não as executa.
+
+| Endpoint | Comportamento |
+| --- | --- |
+| `GET /config` | Apenas `{smsProvider:"MOCK",emailProvider:"MOCK" ou "SMTP"}`; sem credenciais. |
+| `GET /exams` | `{data,total,page,limit}`, filtros `status` (`PENDING`, `RELEASED`) e `notificationStatus` (`NOT_ELIGIBLE`, `PENDING`, `PROCESSING`, `SENT`, `FAILED`). `page=1`, `limit=20`, máximo 100. Inclui paciente, datas, erro controlado, `processingStartedAt` e `reconciliationRequired`. |
+| `POST /exams/process-pending` | Nova verificação de `RELEASED/PENDING`; resposta `{total,sent,failed,uncertain}`. Não reenvia `FAILED`, `SENT` ou `PROCESSING`. |
+| `POST /exams/:id/retry` | Nova tentativa apenas para `FAILED`. 409 para outros estados/concorrência, 404 se ausente. Mantém mensagens com falha anteriores. |
+
+O SMS automático usa sempre “Prezado cliente, os resultados dos seus exames estão disponíveis para retirada.”, independente de edições do template. Após aceite do mock, registra `SMS enviado, cliente X`. O histórico automático usa `templateId=null` e uma `notificationKey` estável por exame/tipo.
+
+A migration `1792022402000-exams` adiciona a entidade e o índice único parcial das mensagens `PENDING`/`SENT`. A transação de reserva bloqueia paciente e exame, grava mensagem `PENDING` e exame `PROCESSING`, e é confirmada antes de chamar o provider. A conclusão grava mensagem e exame atomicamente. Falha de provider vira `FAILED` e não interrompe os demais exames; falha ao persistir o resultado deixa `PROCESSING` para conferência, sem reenvio cego. O rollback recusa remover o suporte se houver histórico automático sem template.
+
+A liberação pelo sistema de origem/banco pode ser demonstrada com `UPDATE exams SET status = 'RELEASED' WHERE id = '<uuid>' AND status = 'PENDING';`. Um trigger define `releasedAt` e `notificationStatus=PENDING`. Depois, faça nova verificação ou reinicie. Não há endpoint de criação/liberação nem polling periódico neste MVP.
+
+`PROCESSING` por cinco minutos sinaliza reconciliação no dashboard; isso também pode indicar uma execução longa, não comprova falha. Confira o histórico e o resultado antes de uma intervenção operacional. Um provider real precisa oferecer idempotência e confirmação de entrega; o mock determinístico não demonstra garantia de entrega real.
+
+`EMAIL_PROVIDER=MOCK` é o padrão, inclusive sem qualquer configuração SMTP. O mock aceita o e-mail sem conexão externa. O SMS mock original permanece intacto.
+
 ## Configurar e-mail real por SMTP
 
 Atualize as dependências com `npm install`, execute `npm run migration:run` e acrescente ao seu `.env` as variáveis abaixo. Não sobrescreva as configurações existentes de banco e CORS. O `.env.example` mantém os campos de SMTP vazios para evitar envios acidentais.
 
 ```dotenv
+EMAIL_PROVIDER=SMTP
 SMTP_HOST=
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -71,7 +95,7 @@ Para uma validação real, configure seu SMTP e importe apenas endereços de tes
 
 Os totais contam **pares paciente × canal**, não destinatários únicos. O limite continua 100 pacientes por requisição, logo até 200 tentativas com dois canais, processadas sequencialmente. Não há retries automáticos. Cada par gera sua própria mensagem `PENDING` e depois `SENT` ou `FAILED`. Paciente sem telefone para SMS ou sem e-mail para EMAIL gera falha apenas naquele par, sem invocar o provider; os demais continuam. O histórico inclui `channel` e o `subject` efetivamente usado no e-mail. Mensagens históricas anteriores recebem `channel=SMS` na migration.
 
-Para SMS, `SENT` significa aceite do mock; para EMAIL, aceite do servidor SMTP. **Nenhum dos dois confirma entrega ao destinatário.** Falhas SMTP ou de contato são registradas no campo `error`. O resumo não identifica os pacientes que falharam: consulte `GET /messages` antes de reenviar para evitar duplicatas.
+Para SMS, `SENT` significa aceite do mock; para EMAIL, aceite do mock ou servidor SMTP conforme `EMAIL_PROVIDER`. **Nenhum dos dois confirma entrega ao destinatário.** Falhas SMTP ou de contato são registradas no campo `error`. O resumo não identifica os pacientes que falharam: consulte `GET /messages` antes de reenviar para evitar duplicatas.
 
 ## Fluxo completo no PowerShell
 
@@ -118,8 +142,8 @@ Para demonstrar falhas, ative `SMS_MOCK_FAIL_ALL=true`, reinicie e repita o pass
 | --- | --- |
 | `POST /patients/import` | Multipart, campo `file`, extensão `.csv`, UTF-8, separador vírgula. Aceita `name,phone,email`, `name,phone` legado ou `name,email`. Até 1 MiB e 1000 registros não vazios. Responde 201 com `imported`, `ignored`, `invalid`. |
 | `GET /patients` | `page=1`, `limit=20` (máximo 100), `search` opcional por nome/telefone/e-mail. Contatos ausentes são `null`. Responde `{data,total,page,limit}`. |
-| `DELETE /patients/:id` | UUID v4. Exclui permanentemente o paciente e suas mensagens. Responde 204 sem corpo. |
-| `POST /patients/bulk-delete` | `{patientIds:["uuid-v4",...]}`, entre 1 e 100 IDs distintos. Exclusão atômica de pacientes e histórico. Responde 200 com `{deleted:n}`. |
+| `DELETE /patients/:id` | UUID v4. Exclui permanentemente o paciente, exames e mensagens. Responde 204 sem corpo. |
+| `POST /patients/bulk-delete` | `{patientIds:["uuid-v4",...]}`, entre 1 e 100 IDs distintos. Exclusão atômica de pacientes, exames e histórico. Responde 200 com `{deleted:n}`. |
 | `POST /templates` | `{name,content,subject?}`. Nome até 120 caracteres e conteúdo até 1600; ambos obrigatórios e não vazios. Assunto opcional até 255 caracteres, sem NUL/CR/LF. Responde 201 com template e UUID. |
 | `GET /templates` | Lista os templates cadastrados. |
 | `POST /messages/send` | `{templateId,patientIds,channels?}` com UUIDs v4. Entre 1 e 100 pacientes distintos. Resposta e comportamento legados se channels for omitido; com channels, inclui `byChannel`. |
@@ -133,7 +157,7 @@ Templates permitem somente o token exato `{{name}}`, em qualquer quantidade, ou 
 
 Envios são síncronos e sequenciais. Todos os IDs são verificados antes de criar mensagens. Template/paciente inexistente retorna 404 sem iniciar envios. Cada paciente/canal é persistido primeiro como `PENDING`; o resultado individual vira `SENT` ou `FAILED`. A falha de um provider/contato não impede os demais envios; falhas de persistência interrompem a requisição para não enviar sem histórico confiável. Erros do provider são substituídos por mensagens controladas, sem dados pessoais nos logs.
 
-Não há deduplicação entre requisições de envio: repetir o POST cria novos envios. Em caso de interrupção do processo ou erro de banco após o aceite, podem permanecer registros `PENDING`. Não há retentativa automática, reconciliação, filas ou garantia de entrega neste MVP. Não repita cegamente uma requisição interrompida.
+No envio manual, não há deduplicação entre requisições de envio: repetir o POST cria novos envios. Em caso de interrupção do processo ou erro de banco após o aceite, podem permanecer registros `PENDING`. Não há retentativa automática, reconciliação, filas ou garantia de entrega neste MVP. Não repita cegamente uma requisição interrompida.
 
 Entradas inválidas retornam 400, upload acima de 1 MiB retorna 413 e falhas internas retornam 500 com mensagem genérica. Campos desconhecidos dos DTOs são rejeitados. O histórico contém conteúdo e dados dos pacientes, portanto também precisa ser protegido antes de uso real.
 
@@ -141,9 +165,9 @@ Entradas inválidas retornam 400, upload acima de 1 MiB retorna 413 e falhas int
 
 A interface oferece lixeira por linha e **Excluir selecionados**, incluindo a seleção mantida em outras páginas. A confirmação informa que o cadastro e todo o histórico de mensagens desses pacientes serão apagados permanentemente. Templates permanecem cadastrados; a exclusão não cancela SMS/e-mails já processados.
 
-Na API, use `DELETE /patients/:id` para um paciente ou `POST /patients/bulk-delete` com `patientIds` para até 100. A transação bloqueia os registros, valida a existência de todos os IDs, impede excluir pacientes com mensagens `PENDING` e só então remove mensagens e pacientes. Um ID inexistente retorna 404; um envio pendente retorna 409; UUIDs inválidos, duplicados ou quantidade fora do limite retornam 400. Em qualquer desses casos, nenhum paciente do lote é excluído.
+Na API, use `DELETE /patients/:id` para um paciente ou `POST /patients/bulk-delete` com `patientIds` para até 100. A transação bloqueia os registros, valida a existência de todos os IDs, impede excluir pacientes com mensagens `PENDING` e só então remove exames, mensagens e pacientes. Um ID inexistente retorna 404; um envio pendente retorna 409; UUIDs inválidos, duplicados ou quantidade fora do limite retornam 400. Em qualquer desses casos, nenhum paciente do lote é excluído.
 
-Envios `PENDING` que permaneceram após interrupção da aplicação precisam ser reconciliados antes da exclusão; o sistema não assume que o envio foi cancelado. Depois da exclusão, os contatos ficam livres para uma nova importação. A funcionalidade utiliza as tabelas e constraints existentes, sem nova migration.
+Envios `PENDING` que permaneceram após interrupção da aplicação precisam ser reconciliados antes da exclusão; o sistema não assume que o envio foi cancelado. Depois da exclusão, os contatos ficam livres para uma nova importação. Exames vinculados também são removidos na mesma transação, antes das mensagens. Exames `PROCESSING` bloqueiam a exclusão.
 
 ## Banco e migrations
 
@@ -183,7 +207,7 @@ npm run test:e2e -- --runInBand
 
 Os testes unitários verificam importação, linhas inválidas, duplicatas, limites, templates, placeholders, interpolação, aceite pelo mock e falhas individuais. Os testes e2e exercitam HTTP, upload, ValidationPipe, Swagger e persistência real em PostgreSQL, incluindo execução/reversão/reexecução da migration. Criam um schema temporário de nome aleatório no banco configurado e removem somente esse schema ao terminar; exigem permissão de criar schema. Execute-os somente em banco local de desenvolvimento e com `SMS_MOCK_FAIL_ALL=false`.
 
-Nesta etapa não foram adicionados testes novos; apenas as expectativas e a montagem dos testes existentes foram adaptadas aos novos campos e à segunda migration. O provider bloqueia e-mail real em ambiente de teste. A entrega por um servidor SMTP externo exige validação manual com credenciais e destinatário sob seu controle.
+Os novos testes verificam seleção do provider de e-mail, validação do ambiente, transição de liberação, persistência antes do envio, concorrência, erros individuais, retries confirmados, estados incertos e seed idempotente com preservação de edições e conflitos de contatos. O provider bloqueia e-mail real em ambiente de teste. A entrega por um servidor SMTP externo exige validação manual com credenciais e destinatário sob seu controle.
 
 A exclusão foi conferida por HTTP em schema temporário com dados fictícios: exclusão individual e em lote, remoção do histórico, bloqueio de pendências, validação de IDs, atomicidade, preservação de templates e reimportação dos contatos. Nenhum paciente existente foi removido durante essa verificação.
 
@@ -192,7 +216,10 @@ A exclusão foi conferida por HTTP em schema temporário com dados fictícios: e
 - `src/contexts/patients`: upload, normalização/validação, importação e listagem.
 - `src/contexts/templates`: validação, cadastro e listagem.
 - `src/contexts/messages`: envio síncrono, provider injetável e histórico.
-- `src/database`: configuração compartilhada, DataSource e migration.
+- `src/contexts/exams`: listagem e processamento de notificações com idempotência.
+- `src/database/seeds`: dados fictícios e preparação idempotente.
+- `src/database/bootstrap.service.ts`: executa seed antes das notificações.
+- `src/database`: configuração compartilhada, DataSource e migrations.
 - `src/config` e `src/common`: ambiente, paginação e erros HTTP sem dados pessoais nos logs.
 - `src/setup-app.ts`: validação global, CORS e Swagger, reutilizados nos testes HTTP.
 - `examples/patients.csv`: dados sintéticos para testar o fluxo.
