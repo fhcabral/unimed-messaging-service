@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { MessageChannel, MessageTemplate, SendResult } from '../../types';
+import type { EmailProviderMode, MessageChannel, MessageTemplate, SendResult } from '../../types';
 import { DEFAULT_EMAIL_SUBJECT } from '../../services/templates';
 import { MAX_SEND_PATIENTS, sendMessages } from '../../services/messages';
 import { getApiError } from '../../services/api';
@@ -9,6 +9,7 @@ import { Feedback } from '../Feedback/Feedback';
 import styles from './SendMessageBar.module.css';
 
 interface Props {
+  emailProvider: EmailProviderMode | null;
   patientIds: string[];
   template?: MessageTemplate;
   channels: MessageChannel[];
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function SendMessageBar({
+  emailProvider,
   patientIds,
   template,
   channels,
@@ -34,7 +36,14 @@ export function SendMessageBar({
     patientIds.length > 0 &&
     patientIds.length <= MAX_SEND_PATIENTS &&
     !!template &&
-    channels.length > 0;
+    channels.length > 0 &&
+    (!channels.includes('EMAIL') || !!emailProvider);
+  const emailLabel =
+    emailProvider === 'MOCK'
+      ? 'E-mail simulado'
+      : emailProvider === 'SMTP'
+        ? 'E-mail real'
+        : 'Modo de e-mail indisponível';
   const missingChannels = channels.filter((channel) => missingContacts[channel] > 0);
 
   async function confirmSend() {
@@ -131,15 +140,16 @@ export function SendMessageBar({
             return counts ? (
               <div className={styles.channelResult} key={channel}>
                 <strong className={styles.inline}>
-                  {channel === 'SMS' ? 'SMS simulado' : 'E-mail real'}
+                  {channel === 'SMS' ? 'SMS simulado' : emailLabel}
                 </strong>
                 : {counts.total} tentativas · {counts.sent} aceitos{' '}
-                {channel === 'SMS' ? 'pelo mock' : 'pelo SMTP'} · {counts.failed} falhas.
+                {channel === 'SMS' || emailProvider === 'MOCK' ? 'pelo mock' : 'pelo SMTP'} ·{' '}
+                {counts.failed} falhas.
               </div>
             ) : null;
           })}
           <span className={styles.resultNote}>
-            SMS é simulado; e-mail é real. O aceite pelo provider não comprova entrega ao
+            SMS simulado · {emailLabel}. O aceite pelo provider não comprova entrega ao
             destinatário.{' '}
             {result.failed > 0
               ? 'A seleção foi mantida. O resumo não identifica os pacientes que falharam; reenviar este lote pode repetir mensagens já aceitas.'
@@ -179,7 +189,7 @@ export function SendMessageBar({
                 <span>Canais</span>
                 <strong>
                   {channels
-                    .map((channel) => (channel === 'SMS' ? 'SMS simulado' : 'E-mail real'))
+                    .map((channel) => (channel === 'SMS' ? 'SMS simulado' : emailLabel))
                     .join(' + ')}
                 </strong>
               </div>
@@ -200,9 +210,10 @@ export function SendMessageBar({
               </Feedback>
             )}
             {channels.includes('EMAIL') && (
-              <Feedback tone="warning" title="E-mail real">
-                Ao confirmar, os e-mails serão enviados de verdade aos endereços cadastrados, se o
-                SMTP estiver configurado. Confirme que os destinatários estão corretos.
+              <Feedback tone={emailProvider === 'SMTP' ? 'warning' : 'info'} title={emailLabel}>
+                {emailProvider === 'SMTP'
+                  ? 'Ao confirmar, os e-mails serão enviados de verdade aos endereços cadastrados via SMTP. Confirme os destinatários.'
+                  : 'O e-mail será aceito pelo mock, sem conexão externa ou envio real.'}
               </Feedback>
             )}
             {missingChannels.length > 0 && (

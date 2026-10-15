@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { MessageChannel, MessageTemplate, PaginatedResponse, Patient } from '../../types';
-import { API_URL, getApiError } from '../../services/api';
+import type {
+  EmailProviderMode,
+  MessageChannel,
+  MessageTemplate,
+  PaginatedResponse,
+  Patient,
+} from '../../types';
+import { getApiError } from '../../services/api';
 import { deletePatients, listPatients } from '../../services/patients';
 import { listTemplates } from '../../services/templates';
 import { MAX_SEND_PATIENTS } from '../../services/messages';
@@ -15,7 +21,13 @@ import { Dialog } from '../../components/Dialog/Dialog';
 import { Icon } from '../../components/Icon/Icon';
 import styles from './Dashboard.module.css';
 
-export function Dashboard() {
+export function Dashboard({
+  emailProvider,
+  onBusyChange,
+}: {
+  emailProvider: EmailProviderMode | null;
+  onBusyChange: (busy: boolean) => void;
+}) {
   const [response, setResponse] = useState<PaginatedResponse<Patient> | null>(null);
   const [patientsLoading, setPatientsLoading] = useState(true);
   const [patientsError, setPatientsError] = useState('');
@@ -42,6 +54,10 @@ export function Dashboard() {
   const [deleteNotice, setDeleteNotice] = useState('');
   const deleteInFlight = useRef(false);
   const busy = sending || deleting;
+
+  useEffect(() => {
+    onBusyChange(busy || templateModalOpen || deleteTargets.length > 0);
+  }, [busy, templateModalOpen, deleteTargets.length, onBusyChange]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -169,181 +185,117 @@ export function Dashboard() {
     (!patientsError && !!response && (response.page !== page || response.limit !== limit));
 
   return (
-    <div className={styles.shell}>
-      <a className="skip-link" href="#conteudo">
-        Pular para o conteúdo
-      </a>
-      <aside className={styles.sidebar} aria-label="Navegação principal">
-        <div className={styles.brand}>
-          <span className={styles.brandMark}>
-            <Icon name="cross" size={25} />
-          </span>
+    <>
+      <div className={styles.main}>
+        <div className={styles.pageHeader}>
           <div>
-            <strong>
-              Hospitalar<span className={styles.brandDot}>.</span>
-            </strong>
-            <span>PLATAFORMA DE MENSAGERIA</span>
+            <span className={styles.eyebrow}>COMUNICAÇÃO COM PACIENTES</span>
+            <h1>Mensageria Hospitalar</h1>
+            <p>Organize seus pacientes e transforme mensagens em cuidado.</p>
           </div>
-        </div>
-        <span className={styles.navLabel}>ÁREA DE TRABALHO</span>
-        <nav>
-          <a className={styles.activeNav} href="#pacientes" aria-current="page">
-            <Icon name="patients" size={19} />
-            <span>Pacientes e mensagens</span>
-            <span className={styles.navIndicator} />
-          </a>
-        </nav>
-        <div className={styles.sidebarGuide}>
-          <span className={styles.guideIcon}>
-            <Icon name="message" size={23} />
-          </span>
-          <h2>
-            O cuidado continua
-            <br />
-            depois do atendimento.
-          </h2>
-          <p>Prepare suas mensagens e mantenha a comunicação próxima de cada paciente.</p>
-          <span className={styles.guideLine} />
-        </div>
-        <div className={styles.sidebarFooter}>
-          <span className={styles.demoDot} />
-          <span>DEMONSTRAÇÃO LOCAL</span>
-          <span className={styles.version}>v0.1</span>
-        </div>
-      </aside>
-      <div className={styles.workspace}>
-        <header className={styles.topbar}>
-          <div className={styles.breadcrumb}>
-            <span className={styles.mobileBrand}>
-              <Icon name="cross" size={20} />
-            </span>
-            <span>Comunicação</span>
-            <Icon name="chevron-right" size={13} />
-            <strong>Pacientes e mensagens</strong>
-          </div>
-          <span className={styles.demoBadge}>
-            <span />
-            SMS simulado · E-mail real
-          </span>
-        </header>
-        <main id="conteudo" className={styles.main}>
-          <div className={styles.pageHeader}>
-            <div>
-              <span className={styles.eyebrow}>COMUNICAÇÃO COM PACIENTES</span>
-              <h1>Mensageria Hospitalar</h1>
-              <p>Organize seus pacientes e transforme mensagens em cuidado.</p>
-            </div>
-            <CsvImporter
-              disabled={busy}
-              onImported={() => {
-                setSearch('');
-                setPage(1);
-                setPatientsRevision((value) => value + 1);
-              }}
-            />
-          </div>
-          <ol className={styles.steps} aria-label="Como preparar um envio">
-            <li>
-              <span className={styles.stepNumber}>01</span>
-              <div>
-                <strong>Importe os pacientes</strong>
-                <p>Adicione sua lista em CSV</p>
-              </div>
-            </li>
-            <li>
-              <span className={styles.stepNumber}>02</span>
-              <div>
-                <strong>Prepare a mensagem</strong>
-                <p>Selecione um template</p>
-              </div>
-            </li>
-            <li>
-              <span className={styles.stepNumber}>03</span>
-              <div>
-                <strong>Revise e envie</strong>
-                <p>Confirme os destinatários</p>
-              </div>
-            </li>
-          </ol>
-          {templateCreated && (
-            <div className={styles.createdNotice}>
-              <Feedback tone="success">
-                Template cadastrado e selecionado. Sua mensagem já está disponível para envio.
-              </Feedback>
-            </div>
-          )}
-          {deleteNotice && (
-            <div className={styles.createdNotice}>
-              <Feedback tone="success">{deleteNotice}</Feedback>
-            </div>
-          )}
-          <div id="pacientes" className={styles.grid}>
-            <PatientTable
-              response={response}
-              loading={tableLoading}
-              error={patientsError}
-              search={search}
-              page={page}
-              limit={limit}
-              selectedIds={selectedIds}
-              disabled={busy}
-              onDelete={requestDelete}
-              onDeleteSelected={() => requestDelete([...selection.values()])}
-              selectionError={selectionError}
-              onSearch={(value) => {
-                setSearch(value);
-                setPage(1);
-              }}
-              onPage={setPage}
-              onLimit={(value) => {
-                setLimit(value);
-                setPage(1);
-              }}
-              onToggle={togglePatients}
-              onClear={clearSelection}
-              onRetry={() => setPatientsRevision((value) => value + 1)}
-            />
-            <TemplateSelect
-              templates={templates}
-              selectedId={selectedTemplateId}
-              samplePatient={samplePatient}
-              loading={templatesLoading}
-              error={templatesError}
-              disabled={busy}
-              channels={channels}
-              onChannelToggle={(channel) =>
-                setChannels((current) =>
-                  current.includes(channel)
-                    ? current.filter((item) => item !== channel)
-                    : [...current, channel],
-                )
-              }
-              onSelect={setSelectedTemplateId}
-              onCreate={() => setTemplateModalOpen(true)}
-              onRetry={() => setTemplatesRevision((value) => value + 1)}
-            />
-          </div>
-          <SendMessageBar
-            patientIds={[...selectedIds]}
-            template={selectedTemplate}
-            channels={channels}
-            missingContacts={{
-              SMS: [...selection.values()].filter((patient) => !patient.phone).length,
-              EMAIL: [...selection.values()].filter((patient) => !patient.email).length,
+          <CsvImporter
+            disabled={busy}
+            onImported={() => {
+              setSearch('');
+              setPage(1);
+              setPatientsRevision((value) => value + 1);
             }}
-            onBusyChange={setSending}
-            onComplete={clearSelection}
           />
-          <footer className={styles.footer}>
-            <p>
-              <Icon name="info" size={13} />
-              Demonstração local. Utilize somente dados fictícios.
-            </p>
-            <a href={`${API_URL}/docs`} target="_blank" rel="noreferrer">
-              Documentação da API <Icon name="external" size={12} />
-            </a>
-          </footer>
-        </main>
+        </div>
+        <ol className={styles.steps} aria-label="Como preparar um envio">
+          <li>
+            <span className={styles.stepNumber}>01</span>
+            <div>
+              <strong>Importe os pacientes</strong>
+              <p>Adicione sua lista em CSV</p>
+            </div>
+          </li>
+          <li>
+            <span className={styles.stepNumber}>02</span>
+            <div>
+              <strong>Prepare a mensagem</strong>
+              <p>Selecione um template</p>
+            </div>
+          </li>
+          <li>
+            <span className={styles.stepNumber}>03</span>
+            <div>
+              <strong>Revise e envie</strong>
+              <p>Confirme os destinatários</p>
+            </div>
+          </li>
+        </ol>
+        {templateCreated && (
+          <div className={styles.createdNotice}>
+            <Feedback tone="success">
+              Template cadastrado e selecionado. Sua mensagem já está disponível para envio.
+            </Feedback>
+          </div>
+        )}
+        {deleteNotice && (
+          <div className={styles.createdNotice}>
+            <Feedback tone="success">{deleteNotice}</Feedback>
+          </div>
+        )}
+        <div id="pacientes" className={styles.grid}>
+          <PatientTable
+            response={response}
+            loading={tableLoading}
+            error={patientsError}
+            search={search}
+            page={page}
+            limit={limit}
+            selectedIds={selectedIds}
+            disabled={busy}
+            onDelete={requestDelete}
+            onDeleteSelected={() => requestDelete([...selection.values()])}
+            selectionError={selectionError}
+            onSearch={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            onPage={setPage}
+            onLimit={(value) => {
+              setLimit(value);
+              setPage(1);
+            }}
+            onToggle={togglePatients}
+            onClear={clearSelection}
+            onRetry={() => setPatientsRevision((value) => value + 1)}
+          />
+          <TemplateSelect
+            emailProvider={emailProvider}
+            templates={templates}
+            selectedId={selectedTemplateId}
+            samplePatient={samplePatient}
+            loading={templatesLoading}
+            error={templatesError}
+            disabled={busy}
+            channels={channels}
+            onChannelToggle={(channel) =>
+              setChannels((current) =>
+                current.includes(channel)
+                  ? current.filter((item) => item !== channel)
+                  : [...current, channel],
+              )
+            }
+            onSelect={setSelectedTemplateId}
+            onCreate={() => setTemplateModalOpen(true)}
+            onRetry={() => setTemplatesRevision((value) => value + 1)}
+          />
+        </div>
+        <SendMessageBar
+          emailProvider={emailProvider}
+          patientIds={[...selectedIds]}
+          template={selectedTemplate}
+          channels={channels}
+          missingContacts={{
+            SMS: [...selection.values()].filter((patient) => !patient.phone).length,
+            EMAIL: [...selection.values()].filter((patient) => !patient.email).length,
+          }}
+          onBusyChange={setSending}
+          onComplete={clearSelection}
+        />
       </div>
       {templateModalOpen && (
         <TemplateModal onClose={() => setTemplateModalOpen(false)} onCreated={templateSaved} />
@@ -371,9 +323,9 @@ export function Dashboard() {
               </p>
             )}
             <Feedback tone="warning">
-              O cadastro e todas as mensagens do histórico desses pacientes serão apagados.
-              Templates serão mantidos. Mensagens já enviadas não podem ser canceladas por esta
-              ação.
+              O cadastro, os exames e todas as mensagens do histórico desses pacientes serão
+              apagados. Templates serão mantidos. Mensagens já enviadas não podem ser canceladas por
+              esta ação.
             </Feedback>
             {deleteError && <Feedback tone="error">{deleteError}</Feedback>}
           </div>
@@ -401,6 +353,6 @@ export function Dashboard() {
           </footer>
         </Dialog>
       )}
-    </div>
+    </>
   );
 }

@@ -1,11 +1,12 @@
 import { useId } from 'react';
-import type { MessageChannel, MessageTemplate, Patient } from '../../types';
+import type { EmailProviderMode, MessageChannel, MessageTemplate, Patient } from '../../types';
 import { DEFAULT_EMAIL_SUBJECT } from '../../services/templates';
 import { Icon } from '../Icon/Icon';
 import { Feedback } from '../Feedback/Feedback';
 import styles from './TemplateSelect.module.css';
 
 interface Props {
+  emailProvider: EmailProviderMode | null;
   templates: MessageTemplate[];
   selectedId: string;
   samplePatient?: Patient;
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function TemplateSelect({
+  emailProvider,
   templates,
   selectedId,
   samplePatient,
@@ -33,6 +35,12 @@ export function TemplateSelect({
   onRetry,
 }: Props) {
   const selectId = useId();
+  const emailLabel =
+    emailProvider === 'MOCK'
+      ? 'Simulado'
+      : emailProvider === 'SMTP'
+        ? 'Real via SMTP'
+        : 'Configuração indisponível';
   const selected = templates.find((template) => template.id === selectedId);
   const preview = selected?.content.replaceAll('{{name}}', () => samplePatient?.name ?? '{{name}}');
 
@@ -123,11 +131,12 @@ export function TemplateSelect({
               <input
                 type="checkbox"
                 checked={channels.includes('EMAIL')}
+                disabled={!emailProvider}
                 onChange={() => onChannelToggle('EMAIL')}
               />
               <span>
                 <strong>E-mail</strong>
-                <small>Real via SMTP</small>
+                <small>{emailLabel}</small>
               </span>
             </label>
           </div>
@@ -136,7 +145,13 @@ export function TemplateSelect({
         {channels.includes('EMAIL') && (
           <div className={styles.emailWarning}>
             <Icon name="info" size={15} />
-            <p>E-mail é um envio real quando o SMTP está configurado.</p>
+            <p>
+              {emailProvider === 'MOCK'
+                ? 'E-mail simulado, sem conexão externa.'
+                : emailProvider === 'SMTP'
+                  ? 'E-mail real via SMTP, enviado após sua confirmação.'
+                  : 'Aguarde a confirmação do modo de e-mail pela API.'}
+            </p>
           </div>
         )}
         <div className={styles.previewHeader}>
@@ -190,8 +205,8 @@ export function TemplateSelect({
       <footer className={styles.footer}>
         <span className={styles.dot} />
         <p>
-          <strong>SMS simulado · E-mail real</strong>SMS usa o mock existente. E-mail depende de
-          SMTP configurado e da sua confirmação de envio.
+          <strong>SMS simulado · E-mail: {emailLabel}</strong>O modo de e-mail é informado pela API.
+          Revise os destinatários antes de confirmar o envio.
         </p>
       </footer>
     </section>
