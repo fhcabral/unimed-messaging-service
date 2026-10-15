@@ -9,6 +9,7 @@ import { parse } from 'csv-parse/sync';
 import { isEmail } from 'class-validator';
 import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
 import { In, Repository } from 'typeorm';
+import { Exam, NotificationStatus } from '../exams/entities/exam.entity';
 import { Patient } from './entities/patient.entity';
 import { ListPatientsDto } from './dto/list-patients.dto';
 import { Message, MessageStatus } from '../messages/entities/message.entity';
@@ -135,11 +136,16 @@ export class PatientsService {
       const hasPending = await manager
         .getRepository(Message)
         .existsBy({ patientId: In(patientIds), status: MessageStatus.PENDING });
-      if (hasPending) {
+      const hasProcessingExam = await manager.getRepository(Exam).existsBy({
+        patientId: In(patientIds),
+        notificationStatus: NotificationStatus.PROCESSING,
+      });
+      if (hasPending || hasProcessingExam) {
         throw new ConflictException(
           'Há envios pendentes para um dos pacientes. Aguarde a conclusão antes de excluir. Nenhum paciente foi excluído.',
         );
       }
+      await manager.delete(Exam, { patientId: In(patientIds) });
       await manager.delete(Message, { patientId: In(patientIds) });
       await manager.delete(Patient, { id: In(patientIds) });
       return { deleted: patients.length };

@@ -38,15 +38,22 @@ export class Message {
   patient: Patient;
 
   @Index('IDX_messages_templateId')
-  @Column({ type: 'uuid' })
-  templateId: string;
+  @Column({ type: 'uuid', nullable: true })
+  templateId: string | null;
 
-  @ManyToOne(() => MessageTemplate, { nullable: false, onDelete: 'RESTRICT' })
+  @ManyToOne(() => MessageTemplate, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({
     name: 'templateId',
     foreignKeyConstraintName: 'FK_messages_template',
   })
-  template: MessageTemplate;
+  template: MessageTemplate | null;
+
+  @Index('UQ_messages_active_notification', {
+    unique: true,
+    where: `"status" IN ('PENDING', 'SENT')`,
+  })
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  notificationKey: string | null;
 
   @Column({ type: 'text' })
   content: string;

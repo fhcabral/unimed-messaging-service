@@ -1,4 +1,6 @@
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
+import { Exam } from '../contexts/exams/entities/exam.entity';
+import { Exams1792022402000 } from './migrations/1792022402000-exams';
 import { Patient } from '../contexts/patients/entities/patient.entity';
 import { MessageTemplate } from '../contexts/templates/entities/message-template.entity';
 import { Message } from '../contexts/messages/entities/message.entity';
@@ -17,8 +19,12 @@ export function databaseOptions(
     username: String(env.DB_USERNAME),
     password: String(env.DB_PASSWORD),
     database: String(env.DB_DATABASE),
-    entities: [Patient, MessageTemplate, Message],
-    migrations: [InitialSchema1792022400000, Multichannel1792022401000],
+    entities: [Patient, MessageTemplate, Message, Exam],
+    migrations: [
+      InitialSchema1792022400000,
+      Multichannel1792022401000,
+      Exams1792022402000,
+    ],
     synchronize: false,
     migrationsRun: false,
     logging: false,
