@@ -10,7 +10,13 @@ import {
 } from 'class-validator';
 
 export class CreateTemplateDto {
-  @ApiProperty({ example: 'Avaliação fictícia', maxLength: 120 })
+  @ApiProperty({
+    example: 'Avaliação fictícia',
+    minLength: 1,
+    maxLength: 120,
+    description:
+      'Nome não vazio após remover espaços nas extremidades; não aceita NUL.',
+  })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
@@ -21,8 +27,11 @@ export class CreateTemplateDto {
   name: string;
 
   @ApiPropertyOptional({
+    type: String,
+    nullable: true,
     description:
-      'Assunto literal do e-mail. Padrão: Mensagem de acompanhamento.',
+      'Assunto literal do e-mail, sem NUL/CR/LF. Ausente, null ou vazio após trim usa Mensagem de acompanhamento no envio.',
+    example: 'Mensagem de acompanhamento',
     maxLength: 255,
   })
   @Transform(({ value }: { value: unknown }) =>
@@ -38,7 +47,11 @@ export class CreateTemplateDto {
 
   @ApiProperty({
     example: 'Olá, {{name}}! Como foi seu atendimento?',
+    minLength: 1,
     maxLength: 1600,
+    pattern: '^(?:[^{}]|\\{\\{name\\}\\})*$',
+    description:
+      'Texto não vazio após trim, sem NUL. Aceita apenas {{name}} como placeholder.',
   })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,

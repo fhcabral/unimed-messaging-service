@@ -32,7 +32,11 @@ export class SendMessagesDto {
   @IsEnum(MessageChannel, { each: true })
   channels?: MessageChannel[];
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({
+    format: 'uuid',
+    example: '00000000-0000-4000-8000-000000000001',
+    description: 'UUID v4 do template.',
+  })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase() : value,
   )
@@ -40,10 +44,13 @@ export class SendMessagesDto {
   templateId: string;
 
   @ApiProperty({
-    type: [String],
+    type: 'array',
+    items: { type: 'string', format: 'uuid' },
     minItems: 1,
     maxItems: MAX_SEND_PATIENTS,
     uniqueItems: true,
+    example: ['00000000-0000-4000-8000-000000000002'],
+    description: 'De 1 a 100 UUIDs v4 distintos de pacientes.',
   })
   @Transform(({ value }: { value: unknown }) =>
     Array.isArray(value)

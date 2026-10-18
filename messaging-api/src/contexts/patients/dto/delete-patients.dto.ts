@@ -12,12 +12,14 @@ export const MAX_DELETE_PATIENTS = 100;
 
 export class DeletePatientsDto {
   @ApiProperty({
-    type: [String],
+    type: 'array',
+    items: { type: 'string', format: 'uuid' },
     minItems: 1,
     maxItems: MAX_DELETE_PATIENTS,
     uniqueItems: true,
+    example: ['00000000-0000-4000-8000-000000000002'],
     description:
-      'Pacientes a excluir permanentemente, junto com o histórico vinculado.',
+      'UUIDs v4 dos pacientes a excluir permanentemente, junto com os exames e o histórico vinculado.',
   })
   @Transform(({ value }: { value: unknown }) =>
     Array.isArray(value)

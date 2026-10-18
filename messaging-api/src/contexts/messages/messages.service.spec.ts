@@ -27,7 +27,10 @@ describe('MessagesService', () => {
   const provider = new MockSmsProvider(
     new ConfigService({ SMS_MOCK_FAIL_ALL: 'false' }),
   );
-  let send: jest.SpyInstance<Promise<void>, [string, string]>;
+  let send: jest.SpyInstance<
+    ReturnType<MockSmsProvider['send']>,
+    Parameters<MockSmsProvider['send']>
+  >;
   const service = new MessagesService(
     {
       create: (value: Partial<Message>) => ({ id: 'message', ...value }),

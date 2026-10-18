@@ -217,7 +217,7 @@ describe('API + PostgreSQL (isolated temporary schema)', () => {
         expect(body.total).toBe(2);
         expect(body.data).toHaveLength(1);
         expect(body.data[0].patient.id).toBeDefined();
-        expect(body.data[0].template.id).toBe(templateId);
+        expect(body.data[0].template?.id).toBe(templateId);
       });
   });
 

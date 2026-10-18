@@ -22,6 +22,8 @@ npm run start:dev
 
 API: http://localhost:3000. Swagger interativo: http://localhost:3000/docs. OpenAPI: http://localhost:3000/docs-json. A API escuta somente em 127.0.0.1. O Compose executa exclusivamente PostgreSQL 16, com volume persistente e porta publicada somente em 127.0.0.1.
 
+O Swagger documenta todas as rotas, corpos de entrada, respostas paginadas, relações, campos nulos e erros HTTP. O envio manual inclui `byChannel` apenas quando `channels` é informado; notificações automáticas têm template nulo e o processamento de exames inclui `uncertain`. Exclusões bloqueadas por mensagens `PENDING` ou exames `PROCESSING` retornam 409.
+
 O `.env.example` contém apenas valores de demonstração local. O `.env` não deve ser comitado. Configuração obrigatória: `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`. `DB_PORT` (5432) e `PORT` (3000) aceitam portas válidas. `CORS_ORIGINS` recebe origens HTTP exatas separadas por vírgula; vazio desabilita CORS. CORS não substitui autenticação.
 
 Para simular rejeição de todos os SMS, defina `SMS_MOCK_FAIL_ALL=true` no `.env` e reinicie a API. Por padrão é `false`. Nenhuma configuração faz o mock enviar SMS real.
@@ -201,11 +203,15 @@ Para parar o PostgreSQL preservando os dados: `docker compose stop`. O exemplo d
 npm run lint
 npm run build
 npm test -- --runInBand
+# Valida o OpenAPI, referências, contratos e Swagger UI sem exigir banco:
+npm run test:swagger
 # Exige o PostgreSQL iniciado e o .env configurado:
 npm run test:e2e -- --runInBand
 ```
 
 Os testes unitários verificam importação, linhas inválidas, duplicatas, limites, templates, placeholders, interpolação, aceite pelo mock e falhas individuais. Os testes e2e exercitam HTTP, upload, ValidationPipe, Swagger e persistência real em PostgreSQL, incluindo execução/reversão/reexecução da migration. Criam um schema temporário de nome aleatório no banco configurado e removem somente esse schema ao terminar; exigem permissão de criar schema. Execute-os somente em banco local de desenvolvimento e com `SMS_MOCK_FAIL_ALL=false`.
+
+`npm run test:swagger` também pode ser executado na raiz. Usa os controllers reais e o mesmo `setupApp`, com serviços substituídos para evitar banco, seed ou envio. Valida o documento gerado em `/docs-json` com `@apidevtools/swagger-parser`, a cobertura das rotas e seus códigos HTTP, os limites de entrada e a disponibilidade da interface Swagger. Esse teste também faz parte de `npm test`.
 
 Os novos testes verificam seleção do provider de e-mail, validação do ambiente, transição de liberação, persistência antes do envio, concorrência, erros individuais, retries confirmados, estados incertos e seed idempotente com preservação de edições e conflitos de contatos. O provider bloqueia e-mail real em ambiente de teste. A entrega por um servidor SMTP externo exige validação manual com credenciais e destinatário sob seu controle.
 

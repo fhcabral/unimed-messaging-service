@@ -10,6 +10,7 @@
     "build": "node scripts/project.mjs build",
     "lint": "npm --prefix messaging-api run lint",
     "test": "npm --prefix messaging-api test -- --runInBand",
+    "test:swagger": "npm --prefix messaging-api run test:swagger",
     "test:e2e": "npm --prefix messaging-api run test:e2e -- --runInBand",
     "demo:pending": "npm --prefix messaging-api run demo:pending",
     "demo:released": "npm --prefix messaging-api run demo:released",
